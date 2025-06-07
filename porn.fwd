@@ -6,10 +6,9 @@
     {
       "id": "91porn",
       "title": "91Porn",
-      "description": "Forward Porn Widgets",
+      "description": "获取 91Porn 列表/视频",
       "requiredVersion": "0.0.1",
-      "version": "1.0.0",
-      "author": "匿名",
+      "version": "0.0.2",
       "url": "https://github.com/baranwang/forward-widget/releases/latest/download/91porn.js"
     }
   ]

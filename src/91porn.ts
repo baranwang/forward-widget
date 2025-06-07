@@ -4,12 +4,14 @@ import { getHtml } from './utils';
 WidgetMetadata = {
   id: '91porn',
   title: '91Porn',
+  description: '获取 91Porn 列表/视频',
   version: __VERSION__,
   requiredVersion: '0.0.1',
+  site: 'https://github.com/baranwang/forward-widget',
   modules: [
     {
       id: '91porn.list',
-      title: '91porn 列表',
+      title: '91Porn 列表',
       functionName: 'get91pornList',
       params: [
         {
@@ -44,9 +46,7 @@ WidgetMetadata = {
 const BASE_URL = 'https://91porn.com';
 
 async function getList(params: { category: string; page: number }) {
-  const $ = await getHtml(
-    `${BASE_URL}/v.php?category=${params.category}&viewtype=basic&page=${params.page}`,
-  );
+  const $ = await getHtml(`${BASE_URL}/v.php?category=${params.category}&viewtype=basic&page=${params.page}`);
   const videos = $('.videos-text-align');
   const list = Array.from(videos).map((el) => {
     const $el = $(el);
@@ -62,31 +62,25 @@ async function getList(params: { category: string; page: number }) {
   });
 
   const results = await Promise.all(
-    list
-      .filter((item): item is string => Boolean(item))
-      .map((item) => getDetailInfo(item)),
+    list.filter((item): item is string => Boolean(item)).map((item) => getDetailInfo(item)),
   );
   return results.filter(Boolean);
 }
 
 async function getDetailInfo(id: string, withVideoUrl = false) {
   const url = `${BASE_URL}/view_video.php?viewkey=${id}`;
-  const $ =await getHtml(url);
+  const $ = await getHtml(url);
   const player = $('#player_one');
   const script = player.find('script').text();
-  const sourceHtml = decodeURIComponent(
-    script.match(/strencode2\("(.*?)"\)/)?.[1] || '',
-  );
-  const useraction = $('#useraction');
+  const sourceHtml = decodeURIComponent(script.match(/strencode2\("(.*?)"\)/)?.[1] || '');
   const result: VideoItem = {
     id: url,
     type: 'url',
     link: url,
     title: $('#videodetails h4').first().text().trim(),
     backdropPath: player.attr('poster'),
-    durationText: $('.duration').text(),
   };
-  const duration = useraction
+  const duration = $('#useraction')
     .find('.info')
     .filter((_, el) => $(el).text().includes('时长'))
     .find('.video-info-span')
@@ -95,6 +89,16 @@ async function getDetailInfo(id: string, withVideoUrl = false) {
   if (duration) {
     result.durationText = duration;
   }
+  const releaseDate = $('.title-yakov').eq(0).text();
+  if (releaseDate) {
+    result.releaseDate = releaseDate;
+  }
+  try {
+    const description = $('#v_desc').html();
+    if (description) {
+      result.description = description;
+    }
+  } catch (error) {}
   if (withVideoUrl) {
     const $source = Widget.html.load(sourceHtml);
     const source = $source('source').attr('src');
