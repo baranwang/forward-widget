@@ -5,7 +5,7 @@ WidgetMetadata = {
   id: '91porn',
   title: '91Porn',
   description: '获取 91Porn 列表/视频',
-  version: __VERSION__,
+  version: process.env.NODE_ENV === 'development' ? 'development' : __VERSION__,
   requiredVersion: '0.0.1',
   site: 'https://github.com/baranwang/forward-widget',
   modules: [
@@ -15,8 +15,9 @@ WidgetMetadata = {
       functionName: 'get91pornList',
       params: [
         {
-          name: 'category',
+          name: 'sort_by',
           title: '分类',
+          description: '分类',
           type: 'enumeration',
           value: 'rf',
           enumOptions: [
@@ -134,11 +135,8 @@ async function getDetailInfo(id: string, withVideoUrl = false) {
   return result;
 }
 
-export async function get91pornList(params: {
-  category: string;
-  page: number;
-}) {
-  return getList(params);
+export async function get91pornList({ sort_by: category, page }: { sort_by: string; page: number }) {
+  return getList({ category, page });
 }
 
 export async function loadDetail(link: string) {

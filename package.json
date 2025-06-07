@@ -15,7 +15,7 @@
   "scripts": {
     "build": "rslib build",
     "check": "biome check --write",
-    "dev": "rslib build --watch",
+    "dev": "NODE_ENV=development rslib build --watch",
     "format": "biome format --write"
   },
   "devDependencies": {
