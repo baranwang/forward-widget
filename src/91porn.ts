@@ -6,7 +6,7 @@ WidgetMetadata = {
   id: '91porn',
   title: '91Porn',
   description: '获取 91Porn 列表/视频',
-  version: process.env.NODE_ENV === 'development' ? 'development' : __VERSION__,
+  version: process.env.NODE_ENV === 'development' ? 'development' : process.env.PACKAGE_VERSION,
   requiredVersion: '0.0.1',
   site: 'https://github.com/baranwang/forward-widget',
   modules: [

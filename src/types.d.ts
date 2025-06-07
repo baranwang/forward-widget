@@ -1,5 +1,3 @@
-declare const __VERSION__: string;
-
 declare let WidgetMetadata: WidgetMetadata;
 
 interface WidgetMetadata {
