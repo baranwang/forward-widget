@@ -1,3 +1,4 @@
+import pLimit from 'p-limit';
 import urlParse from 'url-parse';
 import { getHtml } from './utils';
 
@@ -49,6 +50,8 @@ const BASE_URL = 'https://91porn.com';
 async function getList(params: { category: string; page: number }) {
   const $ = await getHtml(`${BASE_URL}/v.php?category=${params.category}&viewtype=basic&page=${params.page}`);
   const videos = $('.videos-text-align');
+
+  // 列表的数据不知道为什么图文和视频是对不上的，所有这里只获取视频ID，然后去详情页获取视频信息
   const list = Array.from(videos).map((el) => {
     const $el = $(el);
     const url = $el.find('a').attr('href');
@@ -62,10 +65,11 @@ async function getList(params: { category: string; page: number }) {
     return id;
   });
 
+  const limit = pLimit(5);
   const results = await Promise.all(
-    list.filter((item): item is string => Boolean(item)).map((item) => getDetailInfo(item)),
+    list.filter((item): item is string => Boolean(item)).map((item) => limit(() => getDetailInfo(item))),
   );
-  return results.filter(Boolean);
+  return results.filter((item): item is VideoItem => Boolean(item));
 }
 
 async function getDetailInfo(id: string, withVideoUrl = false) {

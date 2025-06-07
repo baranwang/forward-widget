@@ -29,6 +29,7 @@
   },
   "packageManager": "pnpm@10.10.0",
   "dependencies": {
+    "p-limit": "^6.2.0",
     "url-parse": "^1.5.10"
   }
 }
