@@ -15,7 +15,7 @@ WidgetMetadata = {
       functionName: 'get91pornList',
       params: [
         {
-          name: 'sort_by',
+          name: 'category',
           title: '分类',
           description: '分类',
           type: 'enumeration',
@@ -135,8 +135,11 @@ async function getDetailInfo(id: string, withVideoUrl = false) {
   return result;
 }
 
-export async function get91pornList({ sort_by: category, page }: { sort_by: string; page: number }) {
-  return getList({ category, page });
+export async function get91pornList(params: {
+  category: string;
+  page: number;
+}) {
+  return getList(params);
 }
 
 export async function loadDetail(link: string) {
