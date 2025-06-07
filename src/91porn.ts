@@ -95,7 +95,13 @@ async function getDetailInfo(id: string, withVideoUrl = false) {
     result.releaseDate = releaseDate;
   }
   try {
-    const description = $('#v_desc').html();
+    const description = Widget.html
+      .load(
+        $('#v_desc')
+          .html()!
+          .replace(/<br\s*\/?>/g, '\n'),
+      )
+      .text();
     if (description) {
       result.description = description;
     }
