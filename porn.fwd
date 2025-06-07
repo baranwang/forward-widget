@@ -1,0 +1,16 @@
+{
+  "title": "Forward Porn Widgets",
+  "description": "Forward Porn Widgets",
+  "icon": "https://assets.vvebo.vip/scripts/icon.png",
+  "widgets": [
+    {
+      "id": "91porn",
+      "title": "91Porn",
+      "description": "Forward Porn Widgets",
+      "requiredVersion": "0.0.1",
+      "version": "1.0.0",
+      "author": "匿名",
+      "url": "http://192.168.50.66:3000/dist/index.js"
+    }
+  ]
+}
