@@ -15,6 +15,11 @@ interface WidgetMetadata {
   version?: string;
   /** 所需 ForwardWidget 版本 */
   requiredVersion?: string;
+  /**
+   * 详情数据缓存时长，单位：秒
+   * @default 60
+   */
+  detailCacheDuration?: number;
   /** 功能模块列表 */
   modules: WidgetModule[];
   /** 搜索功能配置 */
@@ -41,6 +46,11 @@ interface WidgetModule {
   functionName: string;
   /** 是否支持分段模式 */
   sectionMode?: boolean;
+  /**
+   * 缓存时长，单位：秒
+   * @default 3600
+   */
+  cacheDuration?: number;
   /** 参数配置 */
   params?: WidgetModuleParam[];
 }
@@ -114,6 +124,8 @@ interface VideoItem {
   videoUrl?: string;
   /** 详情页地址 */
   link: string;
+  /** 集数 */
+  episode?: number;
   /** 描述 */
   description?: string;
   /** 子项目列表(最多一层) */

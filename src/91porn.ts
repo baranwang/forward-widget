@@ -1,6 +1,6 @@
-import pLimit from 'p-limit';
-import urlParse from 'url-parse';
 import { getHtml } from './utils';
+
+const DEFAULT_BASE_URL = 'https://91porn.com';
 
 WidgetMetadata = {
   id: '91porn',
@@ -13,7 +13,7 @@ WidgetMetadata = {
     {
       id: '91porn.list',
       title: '91Porn 列表',
-      functionName: 'get91pornList',
+      functionName: 'getList',
       params: [
         {
           name: 'category',
@@ -40,127 +40,153 @@ WidgetMetadata = {
           title: '页码',
           type: 'page',
         },
+        {
+          name: 'base_url',
+          title: '基础 URL',
+          type: 'input',
+          value: DEFAULT_BASE_URL,
+        },
       ],
     },
   ],
 };
 
-const BASE_URL = 'https://91porn.com';
+export async function getList(params: { category: string; page: number; base_url: string }) {
+  params.category ||= 'ori';
+  params.page ||= 1;
+  params.base_url ||= DEFAULT_BASE_URL;
+  try {
+    const $ = await getHtml(`${params.base_url}/v.php?category=${params.category}&viewtype=basic&page=${params.page}`);
 
-async function getList(params: { category: string; page: number }) {
-  const $ = await getHtml(`${BASE_URL}/v.php?category=${params.category}&viewtype=basic&page=${params.page}`);
-  const videos = $('.videos-text-align');
+    const list = Array.from($('.videos-text-align')).map<VideoItem | null>((el) => {
+      const $el = $(el);
+      const $parent = $el.closest('.col-lg-8');
+      if ($parent.length > 0) {
+        console.debug('跳过蜜罐');
+        return null;
+      }
+      const link = $el.find('a').attr('href');
+      if (!link) {
+        console.debug('跳过没有链接的元素');
+        return null;
+      }
 
-  // 列表的数据不知道为什么图文和视频是对不上的，所有这里只获取视频ID，然后去详情页获取视频信息
-  const list = Array.from(videos).map((el) => {
-    const $el = $(el);
-    const url = $el.find('a').attr('href');
-    if (!url) {
-      return null;
-    }
-    const id = urlParse(url, true).query.viewkey;
-    if (!id) {
-      return null;
-    }
-    return id;
-  });
+      const backdropPath = $el.find('.img-responsive').attr('src');
 
-  const limit = pLimit(5);
-  const results = await Promise.all(
-    list.filter((item): item is string => Boolean(item)).map((item) => limit(() => getDetailInfo(item))),
-  );
-  return results.filter((item): item is VideoItem => Boolean(item));
+      const result: VideoItem = {
+        id: link,
+        type: 'url',
+        link,
+        title: $el.find('.video-title').text().trim(),
+        backdropPath,
+      };
+
+      try {
+        result.durationText = $el.find('.duration').text().trim();
+      } catch (error) {}
+
+      try {
+        const videoID = backdropPath?.split('/').pop()?.split('.').shift();
+        if (videoID) {
+          result.previewUrl = `https://vthumb.killcovid2021.com/thumb/${videoID}.mp4`;
+        }
+      } catch (error) {}
+
+      try {
+        const addTimeEl = $el.find('.info').filter((_, el) => $(el).text().includes('添加时间'));
+        const nextSibling = addTimeEl[0]?.nextSibling;
+        const addTime = nextSibling && 'textContent' in nextSibling ? nextSibling.textContent : undefined;
+        if (addTime && typeof addTime === 'string') {
+          result.releaseDate = addTime.trim();
+        }
+      } catch (error) {}
+
+      return result;
+    });
+
+    return list.filter((item): item is VideoItem => Boolean(item));
+  } catch (error) {
+    console.error('视频列表加载失败', error);
+    return [];
+  }
 }
 
-async function getDetailInfo(id: string, withVideoUrl = false) {
-  const url = `${BASE_URL}/view_video.php?viewkey=${id}`;
-  const $ = await getHtml(url);
-  const player = $('#player_one');
-  const script = player.find('script').text();
-  const sourceHtml = decodeURIComponent(script.match(/strencode2\("(.*?)"\)/)?.[1] || '');
-  const result: VideoItem = {
-    id: url,
-    type: 'url',
-    link: url,
-    title: $('#videodetails h4').first().text().trim(),
-    backdropPath: player.attr('poster'),
-  };
-  const duration = $('#useraction')
-    .find('.info')
-    .filter((_, el) => $(el).text().includes('时长'))
-    .find('.video-info-span')
-    .text()
-    .trim();
-  if (duration) {
-    result.durationText = duration;
-  }
-  const releaseDate = $('.title-yakov').eq(0).text();
-  if (releaseDate) {
-    result.releaseDate = releaseDate;
-  }
+export async function loadDetail(url: string) {
   try {
-    const description = Widget.html
-      .load(
-        $('#v_desc')
-          .html()!
-          .replace(/<br\s*\/?>/g, '\n'),
-      )
-      .text();
-    if (description) {
-      result.description = description;
-    }
-  } catch (error) {}
-  if (withVideoUrl) {
+    const $ = await getHtml(url);
+    const player = $('#player_one');
+    const script = player.find('script').text();
+    const sourceHtml = decodeURIComponent(script.match(/strencode2\("(.*?)"\)/)?.[1] || '');
     const $source = Widget.html.load(sourceHtml);
-    const source = $source('source').attr('src');
-    if (!source) {
-      return null;
+    const videoUrl = $source('source').attr('src');
+    if (!videoUrl) {
+      throw new Error('未找到视频资源');
     }
-    result.videoUrl = source;
-    result.type = 'detail';
+    const result: VideoItem = {
+      id: url,
+      type: 'detail',
+      link: url,
+      title: $('#videodetails h4').first().text().trim(),
+      backdropPath: player.attr('poster'),
+      videoUrl,
+    };
+    try {
+      const duration = $('#useraction')
+        .find('.info')
+        .filter((_, el) => $(el).text().includes('时长'))
+        .find('.video-info-span')
+        .text()
+        .trim();
+      if (duration) {
+        result.durationText = duration;
+      }
+    } catch (error) {}
+
+    try {
+      const releaseDate = $('.title-yakov').eq(0).text();
+      if (releaseDate) {
+        result.releaseDate = releaseDate;
+      }
+    } catch (error) {}
+
+    try {
+      const description = Widget.html
+        .load(
+          $('#v_desc')
+            .html()!
+            .replace(/<br\s*\/?>/g, '\n'),
+        )
+        .text();
+      if (description) {
+        result.description = description;
+      }
+    } catch (error) {}
+
     try {
       result.childItems = Array.from($('.well'))
         .map((el) => {
           const $el = $(el);
-          const url = $el.find('a').attr('href');
-          if (!url) {
+          const link = $el.find('a').attr('href');
+          if (!link) {
             return null;
           }
-          const id = urlParse(url, true).query.viewkey;
-          const videoUrl = `${BASE_URL}/view_video.php?viewkey=${id}`;
           const title = $el.find('.video-title').text().trim();
           const durationText = $el.find('.duration').text().trim();
           return {
-            id: videoUrl,
+            id: link,
             type: 'url',
-            link: videoUrl,
+            link: link,
             title,
             durationText,
-            backdropPath: $el.find('img').attr('src'),
+            backdropPath: $el.find('.img-responsive').attr('src'),
           } as VideoItem;
         })
         .filter((item): item is VideoItem => Boolean(item));
     } catch (error) {}
-  }
-  return result;
-}
 
-export async function get91pornList(params: {
-  category: string;
-  page: number;
-}) {
-  return getList(params);
-}
-
-export async function loadDetail(link: string) {
-  const urlObj = urlParse(link, true);
-  const viewkey = urlObj.query.viewkey;
-  if (!viewkey) {
-    throw new Error('URL 错误');
+    return result;
+  } catch (error) {
+    console.error('视频详情加载失败', error);
+    return null;
   }
-  const result = await getDetailInfo(viewkey, true);
-  if (!result) {
-    throw new Error('获取视频详情失败');
-  }
-  return result;
 }
