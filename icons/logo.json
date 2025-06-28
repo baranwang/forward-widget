@@ -1,0 +1,10 @@
+{
+    "name": "Logo",
+    "description": "Logo",
+    "icons": [
+        {
+            "name": "swag",
+            "url": "https://swag.live/static/_next/static/media/login_swag_icon.c630acdd.svg"
+        }
+    ]
+}
