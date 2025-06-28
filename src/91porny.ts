@@ -10,7 +10,7 @@ const generateParams = (module: WidgetModule, categoryEnum: WidgetModuleParam['e
     ...module,
     params: [
       {
-        name: 'category',
+        name: 'sort_by',
         title: '分类',
         description: '分类',
         type: 'enumeration',
@@ -174,12 +174,12 @@ function getVideoList($: CheerioAPI, base_url = DEFAULT_BASE_URL): VideoItem[] {
   return list.filter((item): item is VideoItem => Boolean(item));
 }
 
-export async function get91List(params: { category: string; page: number; base_url: string }) {
-  params.category ||= 'latest';
+export async function get91List(params: { sort_by: string; page: number; base_url: string }) {
+  params.sort_by ||= 'latest';
   params.page ||= 1;
   params.base_url ||= DEFAULT_BASE_URL;
   try {
-    const $ = await getHtml(`${params.base_url}/video/category/${params.category}/${params.page}`);
+    const $ = await getHtml(`${params.base_url}/video/category/${params.sort_by}/${params.page}`);
     return getVideoList($, params.base_url);
   } catch (error) {
     console.error('视频列表加载失败', error);
@@ -187,12 +187,12 @@ export async function get91List(params: { category: string; page: number; base_u
   }
 }
 
-export async function getKedouList(params: { category: string; page: number; base_url: string }) {
-  params.category ||= 'chinese';
+export async function getKedouList(params: { sort_by: string; page: number; base_url: string }) {
+  params.sort_by ||= 'chinese';
   params.page ||= 1;
   params.base_url ||= DEFAULT_BASE_URL;
   try {
-    const $ = await getHtml(`${params.base_url}/videos/categories/${params.category}/${params.page}`);
+    const $ = await getHtml(`${params.base_url}/videos/categories/${params.sort_by}/${params.page}`);
     return getVideoList($, params.base_url);
   } catch (error) {
     console.error('视频列表加载失败', error);
@@ -200,14 +200,14 @@ export async function getKedouList(params: { category: string; page: number; bas
   }
 }
 
-export async function getVodList(params: { category: string; page: number; base_url: string }) {
-  params.category ||= '';
+export async function getVodList(params: { sort_by: string; page: number; base_url: string }) {
+  params.sort_by ||= '';
   params.page ||= 1;
   params.base_url ||= DEFAULT_BASE_URL;
   try {
     let url = `${params.base_url}/vod`;
-    if (params.category) {
-      url += `/${params.category}`;
+    if (params.sort_by) {
+      url += `/${params.sort_by}`;
     }
     url += `?page=${params.page}`;
     const $ = await getHtml(url);

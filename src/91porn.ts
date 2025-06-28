@@ -20,7 +20,7 @@ WidgetMetadata = {
       functionName: 'getList',
       params: [
         {
-          name: 'category',
+          name: 'sort_by',
           title: '分类',
           description: '分类',
           type: 'enumeration',
@@ -56,12 +56,12 @@ WidgetMetadata = {
   ],
 };
 
-export async function getList(params: { category: string; page: number; base_url: string }) {
-  params.category ||= 'ori';
+export async function getList(params: { sort_by: string; page: number; base_url: string }) {
+  params.sort_by ||= 'ori';
   params.page ||= 1;
   params.base_url ||= DEFAULT_BASE_URL;
   try {
-    const $ = await getHtml(`${params.base_url}/v.php?category=${params.category}&viewtype=basic&page=${params.page}`);
+    const $ = await getHtml(`${params.base_url}/v.php?category=${params.sort_by}&viewtype=basic&page=${params.page}`);
 
     const list = Array.from($('.videos-text-align')).map<VideoItem | null>((el) => {
       const $el = $(el);
