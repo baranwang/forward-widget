@@ -192,7 +192,7 @@ export async function getKedouList(params: { category: string; page: number; bas
   params.page ||= 1;
   params.base_url ||= DEFAULT_BASE_URL;
   try {
-    const $ = await getHtml(`${params.base_url}/videos/category/${params.category}/${params.page}`);
+    const $ = await getHtml(`${params.base_url}/videos/categories/${params.category}/${params.page}`);
     return getVideoList($, params.base_url);
   } catch (error) {
     console.error('视频列表加载失败', error);
