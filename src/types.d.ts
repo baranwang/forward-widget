@@ -61,14 +61,7 @@ interface WidgetModuleParam {
   /** 参数显示标题 */
   title: string;
   /** 参数类型 */
-  type:
-    | 'input'
-    | 'constant'
-    | 'enumeration'
-    | 'count'
-    | 'page'
-    | 'offset'
-    | 'language';
+  type: 'input' | 'constant' | 'enumeration' | 'count' | 'page' | 'offset' | 'language';
   /** 参数描述 */
   description?: string;
   /** 默认值 */
@@ -145,5 +138,8 @@ declare const Widget: {
   };
   html: {
     load: typeof import('cheerio').load;
+  };
+  tmdb: {
+    get: <T>(url: string, options?: RequestInit) => Promise<T>;
   };
 };

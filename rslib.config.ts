@@ -6,6 +6,7 @@ export default defineConfig({
   source: {
     entry: {
       '91porn': './src/91porn.ts',
+      '91porny': './src/91porny.ts',
     },
   },
   lib: [

@@ -9,13 +9,14 @@ WidgetMetadata = {
   version: process.env.NODE_ENV === 'development' ? 'development' : process.env.PACKAGE_VERSION,
   requiredVersion: '0.0.1',
   site: 'https://github.com/baranwang/forward-widget',
-  detailCacheDuration: 60,
+  detailCacheDuration: 1,
   modules: [
     {
       id: '91porn.list',
       title: '91Porn 列表',
       description: '获取 91Porn 视频列表',
       cacheDuration: 3600,
+      requiresWebView: false,
       functionName: 'getList',
       params: [
         {
@@ -42,6 +43,7 @@ WidgetMetadata = {
           name: 'page',
           title: '页码',
           type: 'page',
+          value: '1',
         },
         {
           name: 'base_url',
