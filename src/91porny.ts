@@ -159,6 +159,7 @@ function getVideoList($: CheerioAPI, base_url = DEFAULT_BASE_URL): VideoItem[] {
     const result: VideoItem = {
       id: link,
       type: 'url',
+      mediaType: 'movie',
       link,
       title: $el.find('.title').text().trim(),
       backdropPath,
@@ -233,6 +234,7 @@ export async function loadDetail(url: string) {
     const result: VideoItem = {
       id: url,
       type: 'detail',
+      mediaType: 'movie',
       link: url,
       title: $('meta[property="og:title"]').attr('content')?.trim() || '',
       releaseDate: $('meta[property="video:release_date"]').attr('content')?.trim() || '',

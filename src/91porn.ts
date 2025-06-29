@@ -81,6 +81,7 @@ export async function getList(params: { sort_by: string; page: number; base_url:
       const result: VideoItem = {
         id: link,
         type: 'url',
+        mediaType: 'movie',
         link,
         title: $el.find('.video-title').text().trim(),
         backdropPath,
@@ -130,6 +131,7 @@ export async function loadDetail(url: string) {
     const result: VideoItem = {
       id: url,
       type: 'detail',
+      mediaType: 'movie',
       link: url,
       title: $('#videodetails h4').first().text().trim(),
       backdropPath: player.attr('poster'),
@@ -180,6 +182,7 @@ export async function loadDetail(url: string) {
           return {
             id: link,
             type: 'url',
+            mediaType: 'movie',
             link: link,
             title,
             durationText,
