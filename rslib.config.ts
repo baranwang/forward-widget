@@ -24,7 +24,22 @@ export default defineConfig({
     },
   ],
   output: {
-    minify: true,
+    minify: {
+      js: true,
+      jsOptions: {
+        minimizerOptions: {
+          compress: {
+            keep_fargs: true,
+            keep_fnames: true,
+            keep_classnames: true,
+          },
+          mangle: {
+            keep_fnames: true,
+            keep_classnames: true,
+          },
+        },
+      },
+    },
   },
   plugins: [pluginForwardWidget()],
 });
