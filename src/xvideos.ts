@@ -374,6 +374,7 @@ const formatXVideosItem = (item: XVideosItem): VideoItem => {
     link: url,
     title: _unescape(item.tf || item.t),
     backdropPath: item.i,
+    previewUrl: generateVideoPreviewUrl(item.i),
   };
   return childItem;
 };
