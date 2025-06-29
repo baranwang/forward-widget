@@ -1,11 +1,13 @@
-import { getHtml } from './utils';
+import { WidgetAPI } from './utils';
 
 const DEFAULT_BASE_URL = 'https://91porn.com';
+
+const widgetAPI = new WidgetAPI();
 
 WidgetMetadata = {
   id: '91porn',
   title: '91Porn',
-  description: '获取 91Porn 视频',
+  description: '91Porn',
   version: process.env.NODE_ENV === 'development' ? 'development' : process.env.PACKAGE_VERSION,
   requiredVersion: '0.0.1',
   site: 'https://github.com/baranwang/forward-widget',
@@ -13,8 +15,8 @@ WidgetMetadata = {
   modules: [
     {
       id: '91porn.list',
-      title: '91Porn 列表',
-      description: '获取 91Porn 视频列表',
+      title: '91Porn',
+      description: '91Porn',
       cacheDuration: 3600,
       requiresWebView: false,
       functionName: 'getList',
@@ -61,7 +63,9 @@ export async function getList(params: { sort_by: string; page: number; base_url:
   params.page ||= 1;
   params.base_url ||= DEFAULT_BASE_URL;
   try {
-    const $ = await getHtml(`${params.base_url}/v.php?category=${params.sort_by}&viewtype=basic&page=${params.page}`);
+    const $ = await widgetAPI.getHtml(
+      `${params.base_url}/v.php?category=${params.sort_by}&viewtype=basic&page=${params.page}`,
+    );
 
     const list = Array.from($('.videos-text-align')).map<VideoItem | null>((el) => {
       const $el = $(el);
@@ -119,7 +123,7 @@ export async function getList(params: { sort_by: string; page: number; base_url:
 
 export async function loadDetail(url: string) {
   try {
-    const $ = await getHtml(url);
+    const $ = await widgetAPI.getHtml(url);
     const player = $('#player_one');
     const script = player.find('script').text();
     const sourceHtml = decodeURIComponent(script.match(/strencode2\("(.*?)"\)/)?.[1] || '');

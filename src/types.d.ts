@@ -142,4 +142,11 @@ declare const Widget: {
   tmdb: {
     get: <T>(url: string, options?: RequestInit) => Promise<T>;
   };
+  storage: {
+    getItem: (key: string) => Promise<string | null>;
+    setItem: (key: string, value: string) => Promise<void>;
+    removeItem: (key: string) => Promise<void>;
+    clear: () => Promise<void>;
+    keys: () => Promise<string[]>;
+  };
 };

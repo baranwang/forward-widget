@@ -7,6 +7,7 @@ export default defineConfig({
     entry: {
       '91porn': './src/91porn.ts',
       '91porny': './src/91porny.ts',
+      xvideos: './src/xvideos.ts',
     },
   },
   lib: [
@@ -22,5 +23,8 @@ export default defineConfig({
       },
     },
   ],
+  output: {
+    minify: true,
+  },
   plugins: [pluginForwardWidget()],
 });

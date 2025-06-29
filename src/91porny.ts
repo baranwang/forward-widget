@@ -1,7 +1,9 @@
 import type { CheerioAPI } from 'cheerio';
-import { getHtml } from './utils';
+import { WidgetAPI } from './utils';
 
 const DEFAULT_BASE_URL = 'https://91porny.com';
+
+const widgetAPI = new WidgetAPI();
 
 const generateParams = (module: WidgetModule, categoryEnum: WidgetModuleParam['enumOptions']): WidgetModule => {
   return {
@@ -45,8 +47,8 @@ WidgetMetadata = {
     generateParams(
       {
         id: '91porny.video',
-        title: '91Porn 视频',
-        description: '获取 91Porn 视频列表',
+        title: '91Porny',
+        description: '91Porny',
         functionName: 'get91List',
       },
       [
@@ -70,7 +72,7 @@ WidgetMetadata = {
       {
         id: '91porny.videos',
         title: '蝌蚪窝视频',
-        description: '获取蝌蚪窝视频列表',
+        description: '蝌蚪窝视频',
         functionName: 'getKedouList',
       },
       [
@@ -98,7 +100,7 @@ WidgetMetadata = {
       {
         id: '91porny.vod',
         title: '精选视频',
-        description: '获取精选视频列表',
+        description: '精选视频',
         functionName: 'getVodList',
       },
       [
@@ -110,7 +112,7 @@ WidgetMetadata = {
     ),
   ],
   search: {
-    title: '91Porny 搜索',
+    title: '91Porny',
     functionName: 'search',
     params: [
       {
@@ -180,7 +182,9 @@ export async function get91List(params: { sort_by: string; page: number; base_ur
   params.page ||= 1;
   params.base_url ||= DEFAULT_BASE_URL;
   try {
-    const $ = await getHtml(`${params.base_url}/video/category/${params.sort_by}/${params.page}`);
+    const $ = await widgetAPI.getHtml(
+      `${params.base_url}/video/category/${params.sort_by}/${params.page}`,
+    );
     return getVideoList($, params.base_url);
   } catch (error) {
     console.error('视频列表加载失败', error);
@@ -193,7 +197,9 @@ export async function getKedouList(params: { sort_by: string; page: number; base
   params.page ||= 1;
   params.base_url ||= DEFAULT_BASE_URL;
   try {
-    const $ = await getHtml(`${params.base_url}/videos/categories/${params.sort_by}/${params.page}`);
+    const $ = await widgetAPI.getHtml(
+      `${params.base_url}/videos/categories/${params.sort_by}/${params.page}`,
+    );
     return getVideoList($, params.base_url);
   } catch (error) {
     console.error('视频列表加载失败', error);
@@ -211,7 +217,7 @@ export async function getVodList(params: { sort_by: string; page: number; base_u
       url += `/${params.sort_by}`;
     }
     url += `?page=${params.page}`;
-    const $ = await getHtml(url);
+    const $ = await widgetAPI.getHtml(url);
     return getVideoList($, params.base_url);
   } catch (error) {
     console.error('视频列表加载失败', error);
@@ -225,7 +231,7 @@ export async function loadDetail(url: string) {
     if (realUrl.includes('/viewhd/')) {
       realUrl = realUrl.replace('/viewhd/', '/view/');
     }
-    const $ = await getHtml(realUrl);
+    const $ = await widgetAPI.getHtml(realUrl);
     const video = $('#video-play');
     const videoUrl = video.attr('data-src')?.replace('&amp;', '&');
     if (!videoUrl) {
@@ -258,7 +264,9 @@ export async function search(params: { keyword: string; page: number; base_url: 
   params.page ||= 1;
   params.base_url ||= DEFAULT_BASE_URL;
   try {
-    const $ = await getHtml(`${params.base_url}/search?keywords=${params.keyword}&page=${params.page}`);
+    const $ = await widgetAPI.getHtml(
+      `${params.base_url}/search?keywords=${params.keyword}&page=${params.page}`,
+    );
     return getVideoList($, params.base_url);
   } catch (error) {
     console.error('视频列表加载失败', error);
