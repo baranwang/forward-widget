@@ -1,5 +1,12 @@
 # @forward-widget/danmu-universe
 
+## 0.15.2
+
+### Patch Changes
+
+- b7bda01: Add workspace-private TMDB mapping kit integration, local-map package export, and workflow-backed mapping automation for danmu-universe.
+- 4550285: Add TMDB local mapping for 将夜.
+
 ## 0.15.1
 
 ### Patch Changes
