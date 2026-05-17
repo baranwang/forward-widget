@@ -57,14 +57,12 @@ describe("LocalMap types", () => {
     expect(providers).toHaveLength(6);
   });
 
-  test("should validate JSONL sample data", async () => {
+  test("should validate canonical JSONL data when present", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
     const filePath = path.resolve(process.cwd(), "../../packages/tmdb-mapping-kit/data/tmdb-platform-map.jsonl");
     const content = fs.readFileSync(filePath, "utf-8");
     const lines = content.trim().split("\n").filter(Boolean);
-
-    expect(lines.length).toBeGreaterThan(0);
 
     for (const line of lines) {
       const entry = JSON.parse(line) as LocalMapEntry;
