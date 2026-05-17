@@ -474,6 +474,7 @@ https://v.qq.com/x/cover/demo.html
       }) as Response;
 
     const mockedCreateOpencode = rs.mocked(createOpencode);
+    mockedCreateOpencode.mockReset();
     mockedCreateOpencode.mockResolvedValueOnce({
       client: {
         session: {
@@ -516,7 +517,6 @@ https://v.qq.com/x/cover/demo.html
       repoRoot,
       summaryPath,
       env: {
-        ...process.env,
         OPENCODE_MODEL: "custom/model-a",
         OPENCODE_API_KEY: "test-api-key",
         TMDB_ACCESS_TOKEN: "tmdb-token",
@@ -537,5 +537,80 @@ https://v.qq.com/x/cover/demo.html
     expect(summaryFile).toEqual(summary);
     expect(fs.existsSync(path.join(repoRoot, ".changeset", "tmdb-mapping-issue-42.md"))).toBe(true);
     expect(fs.existsSync(dataPath)).toBe(true);
+  });
+
+  test("resolves Bilibili episode URLs without OpenCode", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "tmdb-mapping-run-"));
+    const repoRoot = tempDir;
+    const dataPath = path.join(repoRoot, "packages", "tmdb-mapping-kit", "data", "tmdb-platform-map.jsonl");
+    fs.mkdirSync(path.dirname(dataPath), { recursive: true });
+    fs.mkdirSync(path.join(repoRoot, ".changeset"), { recursive: true });
+    fs.writeFileSync(dataPath, "");
+
+    const issueBody = `### 媒体标题（可选）
+
+_No response_
+
+### TMDB 链接
+
+https://www.themoviedb.org/tv/282136
+
+### 季号（可选）
+
+_No response_
+
+### 视频平台链接
+
+https://www.bilibili.com/bangumi/play/ep3409878
+`;
+    const summaryPath = path.join(tempDir, "summary.json");
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input);
+      if (url.startsWith("https://api.themoviedb.org/3/tv/282136")) {
+        return {
+          ok: true,
+          json: async () => ({ name: "将夜", first_air_date: "2018-10-31" }),
+        } as Response;
+      }
+      if (url === "https://api.bilibili.com/pgc/view/web/season?ep_id=3409878") {
+        return {
+          ok: true,
+          json: async () => ({ result: { season_id: 45962 } }),
+        } as Response;
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    };
+
+    const mockedCreateOpencode = rs.mocked(createOpencode);
+    mockedCreateOpencode.mockReset();
+
+    const summary = await runMappingAgent({
+      issueNumber: 2,
+      issueBody,
+      repoRoot,
+      summaryPath,
+      env: {
+        TMDB_ACCESS_TOKEN: "tmdb-token",
+      },
+      fetchImpl,
+    });
+
+    expect(summary).toMatchObject({
+      status: "success",
+      issueNumber: 2,
+      mappingTitle: "将夜",
+      mappingYear: 2018,
+    });
+    expect(mockedCreateOpencode).not.toHaveBeenCalled();
+
+    const [jsonl] = fs.readFileSync(dataPath, "utf8").trim().split(/\r?\n/);
+    expect(JSON.parse(jsonl)).toMatchObject({
+      type: "tv",
+      tmdbId: 282136,
+      title: "将夜",
+      year: 2018,
+      season: null,
+      providers: [{ provider: "bilibili", idString: "seasonId=45962" }],
+    });
   });
 });

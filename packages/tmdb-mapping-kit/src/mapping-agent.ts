@@ -3,7 +3,7 @@ import path from "node:path";
 import type { Config, OutputFormat } from "@opencode-ai/sdk/v2";
 import { createOpencode } from "@opencode-ai/sdk/v2";
 import { z } from "zod";
-import type { CanonicalMapping, MappingCandidate } from "./schema.ts";
+import type { CanonicalMapping, MappingCandidate, MappingCandidateProvider } from "./schema.ts";
 import { mappingCandidateSchema } from "./schema.ts";
 
 const issueFieldDefinitions = [
@@ -280,6 +280,77 @@ export function buildMappingPrompt(fields: IssueFormFields, metadata: TmdbMetada
   ].join("\n\n");
 }
 
+function bilibiliIdString(seasonId: string): string {
+  return new URLSearchParams({ seasonId }).toString();
+}
+
+async function resolveBilibiliProvider(
+  platformUrl: string,
+  fetchImpl: typeof fetch,
+): Promise<MappingCandidateProvider | null> {
+  const url = new URL(platformUrl);
+  if (url.hostname !== "www.bilibili.com" && url.hostname !== "bilibili.com") {
+    return null;
+  }
+
+  const bangumiPath = /^\/bangumi\/play\/(ss|ep)(\d+)\/?$/.exec(url.pathname);
+  if (!bangumiPath) {
+    return null;
+  }
+
+  const [, kind, id] = bangumiPath;
+  if (kind === "ss") {
+    return { provider: "bilibili", idString: bilibiliIdString(id), url: url.href };
+  }
+
+  const response = await fetchImpl(`https://api.bilibili.com/pgc/view/web/season?ep_id=${id}`);
+  if (!response.ok) {
+    fail(`Bilibili metadata fetch failed with status ${response.status}`);
+  }
+
+  const data = (await response.json()) as { result?: { season_id?: unknown } };
+  const seasonId = data.result?.season_id;
+  if (typeof seasonId !== "number" && typeof seasonId !== "string") {
+    fail("Bilibili metadata response did not include season_id");
+  }
+  return { provider: "bilibili", idString: bilibiliIdString(String(seasonId)), url: url.href };
+}
+
+async function resolvePlatformProviders(
+  platformUrls: string[],
+  fetchImpl: typeof fetch,
+): Promise<MappingCandidateProvider[] | null> {
+  const providers: MappingCandidateProvider[] = [];
+  for (const platformUrl of platformUrls) {
+    const provider = await resolveBilibiliProvider(platformUrl, fetchImpl);
+    if (!provider) {
+      return null;
+    }
+    providers.push(provider);
+  }
+  return providers;
+}
+
+function createResolvedCandidate(
+  fields: IssueFormFields,
+  metadata: TmdbMetadata,
+  providers: MappingCandidateProvider[],
+): MappingCandidate {
+  const { tmdbId } = parseTmdbUrl(fields.tmdb_url);
+  const base = {
+    tmdbId,
+    title: metadata.title,
+    ...(metadata.year === undefined ? {} : { year: metadata.year }),
+    sourceUrl: fields.tmdb_url,
+    verifiedAt: new Date().toISOString(),
+    providers,
+  };
+  if (fields.media_type === "movie") {
+    return { type: "movie", ...base };
+  }
+  return { type: "tv", season: fields.season ?? null, ...base };
+}
+
 export async function fetchTmdbMetadata(
   fields: IssueFormFields,
   env: NodeJS.ProcessEnv,
@@ -477,10 +548,14 @@ async function generateCandidate(
 export async function runMappingAgent(options: MappingAgentOptions): Promise<MappingAgentSummary> {
   const repoRoot = options.repoRoot ?? process.cwd();
   const env = options.env ?? process.env;
+  const fetchImpl = options.fetchImpl ?? fetch;
   try {
     const fields = normalizeIssueFields(parseIssueFormBody(options.issueBody));
-    const metadata = await fetchTmdbMetadata(fields, env, options.fetchImpl);
-    const candidate = await generateCandidate(fields, metadata, repoRoot, env);
+    const metadata = await fetchTmdbMetadata(fields, env, fetchImpl);
+    const resolvedProviders = await resolvePlatformProviders(fields.platform_urls, fetchImpl);
+    const candidate = resolvedProviders
+      ? createResolvedCandidate(fields, metadata, resolvedProviders)
+      : await generateCandidate(fields, metadata, repoRoot, env);
     const mapping = validateCandidateForIssue(candidate, fields, metadata);
     writeMappingArtifacts(repoRoot, options.issueNumber, mapping);
     const summary: MappingAgentSummary = {
