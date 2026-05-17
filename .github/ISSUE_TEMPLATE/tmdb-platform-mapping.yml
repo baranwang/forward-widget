@@ -1,0 +1,70 @@
+name: TMDB 平台映射
+description: 提交 TMDB 条目与视频平台链接映射请求（由维护者审核后进入处理流程）
+title: "[TMDB Mapping] "
+labels:
+  - tmdb-mapping
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请提交 TMDB 页面 URL 与一个或多个平台 URL（每行一个）。
+        若 media_type 为 tv 且为按季映射，请填写对应季号；如需 series-level 映射，请在备注中明确说明，season 才可留空。
+        提交后将由维护者审核并按仓库流程处理，请耐心等待。
+
+  - type: input
+    id: media_title
+    attributes:
+      label: 媒体标题
+      description: 请填写电影或剧集标题，建议与 TMDB 页面标题一致。
+      placeholder: 例如：哪吒之魔童闹海
+    validations:
+      required: true
+
+  - type: dropdown
+    id: media_type
+    attributes:
+      label: 媒体类型
+      description: 请选择与 TMDB 条目一致的类型。
+      options:
+        - movie
+        - tv
+    validations:
+      required: true
+
+  - type: input
+    id: tmdb_url
+    attributes:
+      label: TMDB 链接
+      description: 请提供完整 TMDB 页面链接。
+      placeholder: https://www.themoviedb.org/movie/980477 或 https://www.themoviedb.org/tv/30983
+    validations:
+      required: true
+
+  - type: input
+    id: season
+    attributes:
+      label: 季号（TV 按季映射必填）
+      description: 若 media_type 为 tv 且为按季映射，请填写季号（如 1、2）；仅在 notes 明确说明为 series-level 映射时，season 才可留空。
+      placeholder: 例如：1
+    validations:
+      required: false
+
+  - type: textarea
+    id: platform_urls
+    attributes:
+      label: 视频平台链接
+      description: 请填写一个或多个平台链接，每行一个 URL。
+      placeholder: |
+        https://v.qq.com/x/cover/mzc00200a1b2c3d.html
+        https://www.iqiyi.com/v_19rr8p9q4k.html
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: 备注（可选）
+      description: 可补充版本信息、地区差异、映射说明等。
+      placeholder: 例如：该条目为 series 级别映射。
+    validations:
+      required: false

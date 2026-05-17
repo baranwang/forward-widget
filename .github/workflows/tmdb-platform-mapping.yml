@@ -1,0 +1,246 @@
+name: TMDB Platform Mapping Automation
+
+on:
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  tmdb-platform-mapping:
+    if: ${{ github.event.issue.pull_request == null }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Evaluate approval gates
+        id: gates
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commentBody = (context.payload.comment?.body ?? '').trim();
+            const exactOk = commentBody === '/ok';
+
+            const issueLabels = context.payload.issue?.labels ?? [];
+            const hasLabel = issueLabels.some((label) => label.name === 'tmdb-mapping');
+
+            const allowedAssociations = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+            const association = context.payload.comment?.author_association ?? '';
+            const isAuthorized = allowedAssociations.has(association);
+
+            const canProceed = exactOk && hasLabel && isAuthorized;
+            core.info(`exactOk=${exactOk} hasLabel=${hasLabel} association=${association} isAuthorized=${isAuthorized}`);
+
+            core.setOutput('exact_ok', String(exactOk));
+            core.setOutput('has_label', String(hasLabel));
+            core.setOutput('is_authorized', String(isAuthorized));
+            core.setOutput('can_proceed', String(canProceed));
+
+      - name: Idempotency pre-check
+        id: idempotency
+        if: ${{ steps.gates.outputs.can_proceed == 'true' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issueNumber = context.issue.number;
+            const marker = 'tmdb-mapping-agent:pr-created';
+            const branchName = `tmdb-mapping/issue-${issueNumber}`;
+            const branchRef = `heads/${branchName}`;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: issueNumber,
+              per_page: 100,
+            });
+            const hasMarkerComment = comments.some((comment) =>
+              typeof comment.body === 'string' && comment.body.includes(marker),
+            );
+
+            let branchExists = false;
+            try {
+              await github.rest.git.getRef({ owner, repo, ref: branchRef });
+              branchExists = true;
+            } catch (error) {
+              if (error.status !== 404) {
+                throw error;
+              }
+            }
+
+            const prs = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'all',
+              head: `${owner}:${branchName}`,
+              per_page: 100,
+            });
+            const prExists = prs.data.length > 0;
+            const alreadyProcessed = hasMarkerComment || branchExists || prExists;
+
+            core.info(
+              `hasMarkerComment=${hasMarkerComment} branchExists=${branchExists} prExists=${prExists} alreadyProcessed=${alreadyProcessed}`,
+            );
+            core.setOutput('has_marker_comment', String(hasMarkerComment));
+            core.setOutput('branch_exists', String(branchExists));
+            core.setOutput('pr_exists', String(prExists));
+            core.setOutput('already_processed', String(alreadyProcessed));
+
+      - name: Fetch issue body
+        if: ${{ steps.gates.outputs.can_proceed == 'true' && steps.idempotency.outputs.already_processed != 'true' }}
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_BODY_FILE: ${{ runner.temp }}/tmdb-mapping-issue-body.md
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh issue view "$ISSUE_NUMBER" --json body --jq .body > "$ISSUE_BODY_FILE"
+
+      - name: Run repo-owned mapping agent
+        id: mapping_agent
+        if: ${{ steps.gates.outputs.can_proceed == 'true' && steps.idempotency.outputs.already_processed != 'true' }}
+        continue-on-error: true
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          OPENCODE_BASE_URL: ${{ secrets.OPENCODE_BASE_URL }}
+          OPENCODE_MODEL: ${{ secrets.OPENCODE_MODEL }}
+          OPENCODE_PROVIDER: ${{ secrets.OPENCODE_PROVIDER }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          SUMMARY_FILE: ${{ runner.temp }}/tmdb-mapping-agent-summary.json
+          ISSUE_BODY_FILE: ${{ runner.temp }}/tmdb-mapping-issue-body.md
+        run: pnpm --filter @forward-widget/tmdb-mapping-kit tmdb:mapping-agent -- --issue "$ISSUE_NUMBER" --issue-body-file "$ISSUE_BODY_FILE" --summary-file "$SUMMARY_FILE"
+
+      - name: Evaluate mapping summary
+        id: summary
+        if: ${{ steps.gates.outputs.can_proceed == 'true' && steps.idempotency.outputs.already_processed != 'true' }}
+        env:
+          KIT_OUTCOME: ${{ steps.mapping_agent.outcome }}
+          SUMMARY_FILE: ${{ runner.temp }}/tmdb-mapping-agent-summary.json
+          FAILURE_COMMENT_FILE: ${{ runner.temp }}/tmdb-mapping-failure-comment.md
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+
+          const summaryFile = process.env.SUMMARY_FILE;
+          const failureCommentFile = process.env.FAILURE_COMMENT_FILE;
+          const kitOutcome = process.env.KIT_OUTCOME || 'unknown';
+
+          let summary = null;
+          let summaryStatus = 'missing';
+
+          if (summaryFile && fs.existsSync(summaryFile)) {
+            try {
+              summary = JSON.parse(fs.readFileSync(summaryFile, 'utf8'));
+              if (typeof summary?.status === 'string') {
+                summaryStatus = summary.status;
+              }
+            } catch (error) {
+              summaryStatus = 'invalid';
+            }
+          }
+
+          const shouldFail = kitOutcome !== 'success' || summaryStatus !== 'success';
+          const reason = shouldFail
+            ? `Kit outcome: ${kitOutcome}. Summary status: ${summaryStatus}.`
+            : null;
+
+          if (shouldFail) {
+            const safeLines = [
+              'I could not complete TMDB mapping automation for this issue.',
+              '',
+              reason,
+            ];
+            fs.writeFileSync(failureCommentFile, `${safeLines.join('\n')}\n`);
+          }
+
+          const outputFile = process.env.GITHUB_OUTPUT;
+          fs.appendFileSync(outputFile, `summary_status=${summaryStatus}\n`);
+          fs.appendFileSync(outputFile, `should_fail=${String(shouldFail)}\n`);
+          NODE
+
+      - name: Comment safe failure message
+        if: ${{ steps.gates.outputs.can_proceed == 'true' && steps.idempotency.outputs.already_processed != 'true' && steps.summary.outputs.should_fail == 'true' }}
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          FAILURE_COMMENT_FILE: ${{ runner.temp }}/tmdb-mapping-failure-comment.md
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh issue comment "$ISSUE_NUMBER" --body-file "$FAILURE_COMMENT_FILE"
+
+      - name: Configure git identity
+        if: ${{ steps.gates.outputs.can_proceed == 'true' && steps.idempotency.outputs.already_processed != 'true' && steps.summary.outputs.should_fail != 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create branch, stage intended files, and commit
+        if: ${{ steps.gates.outputs.can_proceed == 'true' && steps.idempotency.outputs.already_processed != 'true' && steps.summary.outputs.should_fail != 'true' }}
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          BRANCH_NAME: tmdb-mapping/issue-${{ github.event.issue.number }}
+        run: |
+          git checkout -B "$BRANCH_NAME"
+          git add packages/tmdb-mapping-kit/data/tmdb-platform-map.jsonl
+          git add .changeset
+          if git diff --cached --quiet; then
+            echo "No staged changes to commit."
+            exit 1
+          fi
+          git commit -m "Add TMDB mapping for issue $ISSUE_NUMBER"
+
+      - name: Push branch
+        if: ${{ steps.gates.outputs.can_proceed == 'true' && steps.idempotency.outputs.already_processed != 'true' && steps.summary.outputs.should_fail != 'true' }}
+        env:
+          BRANCH_NAME: tmdb-mapping/issue-${{ github.event.issue.number }}
+        run: git push --set-upstream origin "$BRANCH_NAME"
+
+      - name: Create pull request
+        id: pr
+        if: ${{ steps.gates.outputs.can_proceed == 'true' && steps.idempotency.outputs.already_processed != 'true' && steps.summary.outputs.should_fail != 'true' }}
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          BRANCH_NAME: tmdb-mapping/issue-${{ github.event.issue.number }}
+          PR_BODY_FILE: ${{ runner.temp }}/tmdb-mapping-pr-body.md
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat > "$PR_BODY_FILE" <<EOF
+          ## Summary
+          - Adds TMDB mapping artifacts generated for this issue.
+
+          Closes #${ISSUE_NUMBER}
+          EOF
+          pr_url=$(gh pr create --head "$BRANCH_NAME" --base main --title "Add TMDB mapping for issue $ISSUE_NUMBER" --body-file "$PR_BODY_FILE")
+          echo "pr_url=$pr_url" >> "$GITHUB_OUTPUT"
+
+      - name: Comment PR URL marker
+        if: ${{ steps.gates.outputs.can_proceed == 'true' && steps.idempotency.outputs.already_processed != 'true' && steps.summary.outputs.should_fail != 'true' }}
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          PR_URL: ${{ steps.pr.outputs.pr_url }}
+          PR_COMMENT_FILE: ${{ runner.temp }}/tmdb-mapping-pr-comment.md
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat > "$PR_COMMENT_FILE" <<EOF
+          Created PR: $PR_URL
+
+          tmdb-mapping-agent:pr-created
+          EOF
+          gh issue comment "$ISSUE_NUMBER" --body-file "$PR_COMMENT_FILE"

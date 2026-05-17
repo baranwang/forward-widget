@@ -1,0 +1,39 @@
+{
+  "name": "@forward-widget/tmdb-mapping-kit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./local-map": {
+      "types": "./dist/local-map.d.ts",
+      "import": "./dist/local-map.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "data"
+  ],
+  "scripts": {
+    "build": "rslib",
+    "dev": "rslib --watch",
+    "test:watch": "rstest --watch",
+    "tmdb:mapping-agent": "node --experimental-strip-types src/cli/mapping-agent.ts",
+    "test": "rstest"
+  },
+  "devDependencies": {
+    "@rslib/core": "^0.21.5",
+    "@rstest/adapter-rslib": "^0.2.2",
+    "@rstest/core": "^0.9.10",
+    "@types/node": "^24.12.4",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "@opencode-ai/sdk": "^1.15.3",
+    "zod": "4.0.17"
+  }
+}

@@ -19,6 +19,7 @@
     "@forward-widget/libs-fetch": "workspace:^",
     "@forward-widget/libs-storage": "workspace:^",
     "@forward-widget/libs-utils": "workspace:^",
+    "@forward-widget/tmdb-mapping-kit": "workspace:^",
     "crypto-js": "^4.2.0",
     "date-fns": "^4.1.0",
     "es-toolkit": "^1.39.9",

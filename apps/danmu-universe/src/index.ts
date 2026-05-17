@@ -2,6 +2,7 @@ import { DoubanHistory } from "./experimental/douban-history";
 import { EMPTY_ANIME_CONFIG, type MediaType, PROVIDER_NAMES } from "./libs/constants";
 import { z } from "./libs/zod";
 import { DoubanMatcher } from "./matchers/douban";
+import { getLocalEpisodeParams } from "./matchers/local";
 import { type GetEpisodeParam, scraper } from "./scrapers";
 
 if (import.meta.rstest) {
@@ -259,6 +260,43 @@ searchDanmu = async (params) => {
 
   const { fuzzyMatch = "auto", type: mediaType, episode } = params;
 
+  const addEpisodeNumber = (items: GetEpisodeParam[]) => {
+    if (mediaType !== "tv") return items;
+    return items.map((item) => ({
+      ...item,
+      episodeNumber: episode ? parseInt(episode, 10) : item.episodeNumber,
+    }));
+  };
+
+  const getMatchedEpisodes = async (items: GetEpisodeParam[]) => {
+    let matchedEpisodes = await scraper.getEpisodes(...addEpisodeNumber(items));
+    if (mediaType === "tv" && episode) {
+      matchedEpisodes = matchedEpisodes.filter((item) => item.episodeNumber === parseInt(episode, 10));
+    }
+    return matchedEpisodes;
+  };
+
+  const toSearchResult = (episodes: Awaited<ReturnType<typeof scraper.getEpisodes>>) => ({
+    animes: episodes.map((item) => {
+      let animeTitle = `[${PROVIDER_NAMES[item.provider as keyof typeof PROVIDER_NAMES]}] `;
+      if (item.episodeTitle) {
+        animeTitle += item.episodeTitle;
+      }
+      return {
+        animeId: item.episodeId,
+        animeTitle,
+      };
+    }),
+  });
+
+  const tmdbId = params.tmdbId ? Number(params.tmdbId) : NaN;
+  const season = mediaType === "tv" && params.season !== undefined ? Number(params.season) : null;
+  const localEpisodeParams = Number.isInteger(tmdbId) ? getLocalEpisodeParams({ type: mediaType, tmdbId, season }) : [];
+  if (localEpisodeParams.length) {
+    const localEpisodes = await getMatchedEpisodes(localEpisodeParams);
+    if (localEpisodes.length) return toSearchResult(localEpisodes);
+  }
+
   let episodesParams: GetEpisodeParam[] = [];
 
   const doubanMatcher = new DoubanMatcher();
@@ -284,18 +322,7 @@ searchDanmu = async (params) => {
     episodesParams = episodesParams.concat(searchEpisodes);
   }
 
-  if (mediaType === "tv") {
-    episodesParams = episodesParams.map((item) => ({
-      ...item,
-      episodeNumber: episode ? parseInt(episode, 10) : undefined,
-    }));
-  }
-
-  let episodes = await scraper.getEpisodes(...episodesParams);
-
-  if (mediaType === "tv" && episode) {
-    episodes = episodes.filter((item) => item.episodeNumber === parseInt(episode, 10));
-  }
+  const episodes = await getMatchedEpisodes(episodesParams);
 
   if (!episodes.length && checkShowEmptyAnimeTitle(params)) {
     return {
@@ -307,18 +334,7 @@ searchDanmu = async (params) => {
       ],
     };
   }
-  return {
-    animes: episodes.map((item) => {
-      let animeTitle = `[${PROVIDER_NAMES[item.provider as keyof typeof PROVIDER_NAMES]}] `;
-      if (item.episodeTitle) {
-        animeTitle += item.episodeTitle;
-      }
-      return {
-        animeId: item.episodeId,
-        animeTitle,
-      };
-    }),
-  };
+  return toSearchResult(episodes);
 };
 
 getDetail = async (params) => {
