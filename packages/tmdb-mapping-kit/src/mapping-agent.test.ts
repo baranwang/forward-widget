@@ -1,11 +1,13 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, test } from "@rstest/core";
+import { createOpencode } from "@opencode-ai/sdk/v2";
+import { describe, expect, rs, test } from "@rstest/core";
 import { z } from "zod";
 import {
   assertNoDuplicateMapping,
   createChangesetContent,
+  fetchTmdbMetadata,
   mappingAgentOutputJsonSchema,
   mappingArtifactPaths,
   modelResponseSchema,
@@ -16,10 +18,15 @@ import {
   parseMappingAgentArgs,
   parseModelResponse,
   parseStructuredModelResponse,
+  runMappingAgent,
   runMappingAgentCli,
   validateCandidateForIssue,
   writeMappingAgentSummary,
 } from "./mapping-agent.ts";
+
+rs.mock("@opencode-ai/sdk/v2", () => ({
+  createOpencode: rs.fn(),
+}));
 
 describe("mapping agent CLI and provider config parsing", () => {
   test("requires issue, issue-body-file, and summary-file", () => {
@@ -69,10 +76,6 @@ describe("issue form validation", () => {
 
 Example Show
 
-### 媒体类型
-
-tv
-
 ### TMDB 链接
 
 https://www.themoviedb.org/tv/12345
@@ -93,7 +96,6 @@ _no response_
   test("extracts only supported issue form fields from headings", () => {
     expect(parseIssueFormBody(body)).toEqual({
       media_title: "Example Show",
-      media_type: "tv",
       tmdb_url: "https://www.themoviedb.org/tv/12345",
       season: "2",
       platform_urls: "https://v.qq.com/x/cover/demo.html",
@@ -101,20 +103,52 @@ _no response_
     });
   });
 
-  test("validates TMDB path against media type", () => {
-    const fields = normalizeIssueFields(parseIssueFormBody(body));
+  test("ignores legacy media type headings and infers type from TMDB URL", () => {
+    const legacyBody = `${body}\n### 媒体类型\n\nmovie\n`;
+    expect(parseIssueFormBody(legacyBody)).toEqual({
+      media_title: "Example Show",
+      tmdb_url: "https://www.themoviedb.org/tv/12345",
+      season: "2",
+      platform_urls: "https://v.qq.com/x/cover/demo.html",
+      notes: "",
+    });
+
+    const fields = normalizeIssueFields(parseIssueFormBody(legacyBody));
+    expect(fields.media_type).toBe("tv");
     expect(fields.season).toBe(2);
     expect(fields.platform_urls).toEqual(["https://v.qq.com/x/cover/demo.html"]);
-    expect(() =>
-      normalizeIssueFields({
-        media_title: "Example",
-        media_type: "movie",
-        tmdb_url: "https://www.themoviedb.org/tv/12345",
-        season: "",
-        platform_urls: "https://v.qq.com/x/cover/demo.html",
-        notes: "",
-      }),
-    ).toThrow("media_type must match tmdb_url path");
+  });
+
+  test("parses and normalizes issue bodies without a media type heading", () => {
+    const bodyWithoutMediaType = `### 媒体标题
+
+_No response_
+
+### TMDB 链接
+
+https://www.themoviedb.org/tv/282136
+
+### 视频平台链接
+
+https://v.qq.com/x/cover/demo.html
+`;
+
+    expect(parseIssueFormBody(bodyWithoutMediaType)).toEqual({
+      media_title: "",
+      tmdb_url: "https://www.themoviedb.org/tv/282136",
+      season: "",
+      platform_urls: "https://v.qq.com/x/cover/demo.html",
+      notes: "",
+    });
+
+    expect(normalizeIssueFields(parseIssueFormBody(bodyWithoutMediaType))).toEqual({
+      media_title: undefined,
+      media_type: "tv",
+      tmdb_url: "https://www.themoviedb.org/tv/282136",
+      season: null,
+      platform_urls: ["https://v.qq.com/x/cover/demo.html"],
+      notes: undefined,
+    });
   });
 
   test("treats missing TV season as series-level mapping", () => {
@@ -133,10 +167,9 @@ _no response_
 
 describe("model output validation", () => {
   const fields = normalizeIssueFields({
-    media_title: "Example Show",
-    media_type: "tv",
-    tmdb_url: "https://www.themoviedb.org/tv/12345",
-    season: "2",
+    media_title: "Issue Title",
+    media_type: "movie",
+    tmdb_url: "https://www.themoviedb.org/movie/980477",
     platform_urls: "https://v.qq.com/x/cover/demo.html",
     notes: "",
   });
@@ -145,13 +178,13 @@ describe("model output validation", () => {
     status: "confident",
     reason: "extracted from URL",
     mapping: {
-      type: "tv",
-      tmdbId: 12345,
+      type: "movie",
+      tmdbId: 980477,
       title: "Model Title",
-      sourceUrl: "https://www.themoviedb.org/tv/12345",
+      year: 2000,
+      sourceUrl: "https://www.themoviedb.org/movie/980477",
       verifiedAt: "2026-05-17T10:00:00.000Z",
-      season: 2,
-      providers: [{ provider: "tencent", idString: "demo", url: "https://v.qq.com/x/cover/demo.html" }],
+      providers: [{ provider: "iqiyi", idString: "demo", url: "https://v.qq.com/x/cover/demo.html" }],
     },
   });
 
@@ -159,18 +192,28 @@ describe("model output validation", () => {
     expect(mappingAgentOutputJsonSchema).toEqual(z.toJSONSchema(modelResponseSchema));
   });
 
+  test("keeps the issue template free of media type input", () => {
+    const template = fs.readFileSync(
+      path.resolve(process.cwd(), "..", "..", ".github/ISSUE_TEMPLATE/tmdb-platform-mapping.yml"),
+      "utf8",
+    );
+    expect(template).not.toContain("id: media_type");
+    expect(template).toContain("id: media_title");
+    expect(template).toMatch(/id: media_title[\s\S]*?required: false/);
+  });
+
   test("parses structured SDK output without text extraction", () => {
     expect(parseStructuredModelResponse(JSON.parse(response))).toEqual({
       status: "confident",
       reason: "extracted from URL",
       mapping: {
-        type: "tv",
-        tmdbId: 12345,
+        type: "movie",
+        tmdbId: 980477,
         title: "Model Title",
-        sourceUrl: "https://www.themoviedb.org/tv/12345",
+        year: 2000,
+        sourceUrl: "https://www.themoviedb.org/movie/980477",
         verifiedAt: "2026-05-17T10:00:00.000Z",
-        season: 2,
-        providers: [{ provider: "tencent", idString: "demo", url: "https://v.qq.com/x/cover/demo.html" }],
+        providers: [{ provider: "iqiyi", idString: "demo", url: "https://v.qq.com/x/cover/demo.html" }],
       },
     });
   });
@@ -181,25 +224,94 @@ describe("model output validation", () => {
     if (extraction.status !== "confident") {
       throw new Error("expected confident response");
     }
-    const canonical = validateCandidateForIssue(extraction.mapping, fields);
+    const canonical = validateCandidateForIssue(extraction.mapping, fields, { title: "TMDB Title", year: 2025 });
     expect(canonical).toMatchObject({
-      title: "Example Show",
-      sourceUrl: "https://www.themoviedb.org/tv/12345",
-      providers: [{ provider: "tencent", idString: "demo" }],
+      title: "TMDB Title",
+      year: 2025,
+      sourceUrl: "https://www.themoviedb.org/movie/980477",
+      providers: [{ provider: "iqiyi", idString: "demo" }],
     });
     expect("url" in canonical.providers[0]).toBe(false);
   });
 
-  test("fails safely on ambiguous output and mismatched season", () => {
+  test("fails safely on ambiguous output and mismatched TMDB id", () => {
     expect(parseModelResponse('{"status":"ambiguous","reason":"two possible ids"}')).toEqual({
       status: "ambiguous",
       reason: "two possible ids",
     });
-    const mismatched = parseModelResponse(response.replace('"season":2', '"season":1'));
+    const mismatched = parseModelResponse(response.replace('"tmdbId":980477', '"tmdbId":980478'));
     if (mismatched.status !== "confident") {
       throw new Error("expected confident response");
     }
-    expect(() => validateCandidateForIssue(mismatched.mapping, fields)).toThrow("season does not match");
+    expect(() => validateCandidateForIssue(mismatched.mapping, fields, { title: "TMDB Title", year: 2025 })).toThrow(
+      "TMDB id does not match issue URL",
+    );
+  });
+});
+
+describe("TMDB metadata fetch", () => {
+  const movieFields = normalizeIssueFields({
+    media_title: "Issue Title",
+    media_type: "movie",
+    tmdb_url: "https://www.themoviedb.org/movie/980477",
+    platform_urls: "https://v.qq.com/x/cover/demo.html",
+    notes: "",
+  });
+
+  const tvFields = normalizeIssueFields({
+    media_title: "Issue Title",
+    media_type: "tv",
+    tmdb_url: "https://www.themoviedb.org/tv/12345",
+    platform_urls: "https://v.qq.com/x/cover/demo.html",
+    notes: "",
+  });
+
+  function response(json: Record<string, unknown>, status = 200): Response {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      json: async () => json,
+    } as Response;
+  }
+
+  test("fetches movie title and year from TMDB metadata", async () => {
+    const fetchImpl = async () => response({ title: "TMDB Movie", release_date: "2025-03-01" });
+
+    await expect(fetchTmdbMetadata(movieFields, { TMDB_ACCESS_TOKEN: "token" }, fetchImpl)).resolves.toEqual({
+      title: "TMDB Movie",
+      year: 2025,
+    });
+  });
+
+  test("fetches TV title and year from TMDB metadata", async () => {
+    const fetchImpl = async () => response({ name: "TMDB Show", first_air_date: "2024-11-09" });
+
+    await expect(fetchTmdbMetadata(tvFields, { TMDB_ACCESS_TOKEN: "token" }, fetchImpl)).resolves.toEqual({
+      title: "TMDB Show",
+      year: 2024,
+    });
+  });
+
+  test("requires a TMDB access token", async () => {
+    const fetchImpl = async () => response({ title: "TMDB Movie" });
+
+    await expect(fetchTmdbMetadata(movieFields, {}, fetchImpl)).rejects.toThrow("TMDB_ACCESS_TOKEN is required");
+  });
+
+  test("fails on non-2xx TMDB metadata responses", async () => {
+    const fetchImpl = async () => response({}, 503);
+
+    await expect(fetchTmdbMetadata(movieFields, { TMDB_ACCESS_TOKEN: "token" }, fetchImpl)).rejects.toThrow(
+      "TMDB metadata fetch failed with status 503",
+    );
+  });
+
+  test("fails when TMDB metadata omits a usable title", async () => {
+    const fetchImpl = async () => response({ release_date: "2025-03-01" });
+
+    await expect(fetchTmdbMetadata(movieFields, { TMDB_ACCESS_TOKEN: "token" }, fetchImpl)).rejects.toThrow(
+      "TMDB metadata response did not include a title",
+    );
   });
 });
 
@@ -232,6 +344,7 @@ describe("write safety helpers", () => {
       status: "success",
       issueNumber: 42,
       mappingTitle: "Example Show",
+      mappingYear: 2025,
       changedFiles: [...mappingArtifactPaths, ".changeset/tmdb-mapping-issue-42.md"],
       message: "ok",
     });
@@ -241,6 +354,7 @@ describe("write safety helpers", () => {
       status: "success",
       issueNumber: 42,
       mappingTitle: "Example Show",
+      mappingYear: 2025,
       changedFiles: [...mappingArtifactPaths, ".changeset/tmdb-mapping-issue-42.md"],
       message: "ok",
     });
@@ -324,5 +438,104 @@ describe("cli safe failure summary", () => {
       issueNumber: 42,
       message: expect.stringContaining("ENOENT"),
     });
+  });
+});
+
+describe("runMappingAgent integration", () => {
+  test("writes success summary with canonical title, year, and changed files", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "tmdb-mapping-run-"));
+    const repoRoot = tempDir;
+    const dataPath = path.join(repoRoot, "packages", "tmdb-mapping-kit", "data", "tmdb-platform-map.jsonl");
+    const changesetDir = path.join(repoRoot, ".changeset");
+    fs.mkdirSync(path.dirname(dataPath), { recursive: true });
+    fs.mkdirSync(changesetDir, { recursive: true });
+    fs.writeFileSync(dataPath, "");
+
+    const issueBody = `### 媒体标题
+
+_No response_
+
+### TMDB 链接
+
+https://www.themoviedb.org/tv/282136
+
+### 视频平台链接
+
+https://v.qq.com/x/cover/demo.html
+`;
+    const summaryPath = path.join(tempDir, "summary.json");
+    const fetchImpl: typeof fetch = async () =>
+      ({
+        ok: true,
+        json: async () => ({
+          name: "Example Show",
+          first_air_date: "2025-01-02",
+        }),
+      }) as Response;
+
+    const mockedCreateOpencode = rs.mocked(createOpencode);
+    mockedCreateOpencode.mockResolvedValueOnce({
+      client: {
+        session: {
+          create: rs.fn().mockResolvedValueOnce({ data: { id: "session-1" } }),
+          prompt: rs.fn().mockResolvedValueOnce({
+            data: {
+              info: {
+                structured: {
+                  status: "confident",
+                  mapping: {
+                    type: "tv",
+                    tmdbId: 282136,
+                    title: "Example Show",
+                    year: 2025,
+                    sourceUrl: "https://www.themoviedb.org/tv/282136",
+                    verifiedAt: "2026-05-17T10:00:00.000Z",
+                    providers: [
+                      {
+                        provider: "iqiyi",
+                        idString: "demo",
+                        url: "https://v.qq.com/x/cover/demo.html",
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          }),
+        },
+      },
+      server: {
+        url: "http://127.0.0.1:0",
+        close: rs.fn(),
+      },
+    } as unknown as Awaited<ReturnType<typeof createOpencode>>);
+
+    const summary = await runMappingAgent({
+      issueNumber: 42,
+      issueBody,
+      repoRoot,
+      summaryPath,
+      env: {
+        ...process.env,
+        OPENCODE_MODEL: "custom/model-a",
+        OPENCODE_API_KEY: "test-api-key",
+        TMDB_ACCESS_TOKEN: "tmdb-token",
+      },
+      fetchImpl,
+    });
+
+    expect(summary).toEqual({
+      status: "success",
+      issueNumber: 42,
+      mappingTitle: "Example Show",
+      mappingYear: 2025,
+      changedFiles: [...mappingArtifactPaths, ".changeset/tmdb-mapping-issue-42.md"],
+      message: "TMDB mapping artifacts written for Example Show",
+    });
+
+    const summaryFile = JSON.parse(fs.readFileSync(summaryPath, "utf8"));
+    expect(summaryFile).toEqual(summary);
+    expect(fs.existsSync(path.join(repoRoot, ".changeset", "tmdb-mapping-issue-42.md"))).toBe(true);
+    expect(fs.existsSync(dataPath)).toBe(true);
   });
 });

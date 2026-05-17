@@ -16,22 +16,11 @@ body:
   - type: input
     id: media_title
     attributes:
-      label: 媒体标题
-      description: 请填写电影或剧集标题，建议与 TMDB 页面标题一致。
+      label: 媒体标题（可选）
+      description: 请填写电影或剧集标题，自动化会从 TMDB 获取准确标题。
       placeholder: 例如：哪吒之魔童闹海
     validations:
-      required: true
-
-  - type: dropdown
-    id: media_type
-    attributes:
-      label: 媒体类型
-      description: 请选择与 TMDB 条目一致的类型。
-      options:
-        - movie
-        - tv
-    validations:
-      required: true
+      required: false
 
   - type: input
     id: tmdb_url

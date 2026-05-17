@@ -24,6 +24,7 @@ export const canonicalMovieMappingSchema = canonicalBaseMappingSchema.extend({
 
 export const canonicalTvMappingSchema = canonicalBaseMappingSchema.extend({
   type: z.literal("tv"),
+  year: z.number().int().optional(),
   season: z.number().int().nonnegative().nullable().optional(),
   providers: z.array(canonicalProviderSchema),
 });
