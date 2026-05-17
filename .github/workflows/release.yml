@@ -36,22 +36,3 @@ jobs:
           commit: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Format Published Packages
-        id: package_list
-        if: steps.changesets.outputs.published == 'true'
-        run: |
-          echo "packages=$(echo '${{ steps.changesets.outputs.publishedPackages }}' | jq -r '.[] | "- [\(.name)@\(.version)](https://gocy.pages.dev/#forward://widget?url=https://unpkg.com/\(.name))"')" >> $GITHUB_OUTPUT
-
-      - name: Notify on Release
-        if: steps.changesets.outputs.published == 'true'
-        uses: cbrgm/telegram-github-action@v1
-        with:
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          message: |
-            🚀 新版本发布
-
-            ${{ steps.package_list.outputs.packages }}
-
-            更新详情请查看 https://github.com/${{ github.repository }}/releases
