@@ -1,5 +1,4 @@
 ---
-"@forward-widget/tmdb-mapping-kit": patch
 "@forward-widget/danmu-universe": patch
 ---
 

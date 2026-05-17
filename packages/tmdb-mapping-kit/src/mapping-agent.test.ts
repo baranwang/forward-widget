@@ -333,7 +333,6 @@ describe("write safety helpers", () => {
   });
 
   test("creates a changeset for affected packages", () => {
-    expect(createChangesetContent(mapping)).toContain('"@forward-widget/tmdb-mapping-kit": patch');
     expect(createChangesetContent(mapping)).toContain('"@forward-widget/danmu-universe": patch');
   });
 

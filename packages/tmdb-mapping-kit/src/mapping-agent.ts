@@ -388,7 +388,6 @@ export async function fetchTmdbMetadata(
 export function createChangesetContent(mapping: CanonicalMapping): string {
   return [
     "---",
-    '"@forward-widget/tmdb-mapping-kit": patch',
     '"@forward-widget/danmu-universe": patch',
     "---",
     "",
