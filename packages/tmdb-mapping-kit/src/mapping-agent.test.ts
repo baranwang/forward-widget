@@ -7,6 +7,7 @@ import { z } from "zod";
 import {
   assertNoDuplicateMapping,
   createChangesetContent,
+  defaultRepoRoot,
   fetchTmdbMetadata,
   mappingAgentOutputJsonSchema,
   mappingArtifactPaths,
@@ -438,6 +439,10 @@ describe("cli safe failure summary", () => {
       issueNumber: 42,
       message: expect.stringContaining("ENOENT"),
     });
+  });
+
+  test("uses GitHub workspace as CLI repo root when pnpm runs from package cwd", () => {
+    expect(defaultRepoRoot({ GITHUB_WORKSPACE: "/tmp/forward-widget" })).toBe("/tmp/forward-widget");
   });
 });
 

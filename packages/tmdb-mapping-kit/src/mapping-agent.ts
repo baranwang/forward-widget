@@ -610,6 +610,10 @@ export function parseMappingAgentArgs(args: string[]): { issue: number; issueBod
   };
 }
 
+export function defaultRepoRoot(env: NodeJS.ProcessEnv = process.env): string {
+  return env.GITHUB_WORKSPACE || path.resolve(import.meta.dirname, "..", "..", "..");
+}
+
 export async function runMappingAgentCli(args: string[]): Promise<MappingAgentSummary> {
   const parsed = parseMappingAgentArgs(args);
 
@@ -618,6 +622,7 @@ export async function runMappingAgentCli(args: string[]): Promise<MappingAgentSu
     const summary = await runMappingAgent({
       issueNumber: parsed.issue,
       issueBody,
+      repoRoot: defaultRepoRoot(),
       summaryPath: parsed.summaryFile,
     });
     if (summary.status !== "success") {
