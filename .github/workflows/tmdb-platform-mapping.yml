@@ -115,6 +115,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh issue view "$ISSUE_NUMBER" --json body --jq .body > "$ISSUE_BODY_FILE"
 
+      - name: Install OpenCode
+        if: ${{ steps.gates.outputs.can_proceed == 'true' && steps.idempotency.outputs.already_processed != 'true' }}
+        run: |
+          curl -fsSL https://opencode.ai/install | bash
+          echo "$HOME/.opencode/bin" >> "$GITHUB_PATH"
+
       - name: Run repo-owned mapping agent
         id: mapping_agent
         if: ${{ steps.gates.outputs.can_proceed == 'true' && steps.idempotency.outputs.already_processed != 'true' }}
@@ -122,8 +128,8 @@ jobs:
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           OPENCODE_BASE_URL: ${{ secrets.OPENCODE_BASE_URL }}
-          OPENCODE_MODEL: ${{ secrets.OPENCODE_MODEL }}
-          OPENCODE_PROVIDER: ${{ secrets.OPENCODE_PROVIDER }}
+          OPENCODE_MODEL: openai/gpt-5.4-mini
+          OPENCODE_PROVIDER: openai
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           SUMMARY_FILE: ${{ runner.temp }}/tmdb-mapping-agent-summary.json
           ISSUE_BODY_FILE: ${{ runner.temp }}/tmdb-mapping-issue-body.md
