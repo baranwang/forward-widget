@@ -26,7 +26,13 @@ export const modelResponseSchema = z.discriminatedUnion("status", [
   }),
 ]);
 
-export const mappingAgentOutputJsonSchema = z.toJSONSchema(modelResponseSchema);
+export const modelResponseOutputSchema = z.object({
+  status: z.enum(["confident", "ambiguous"]),
+  mapping: mappingCandidateSchema.optional(),
+  reason: z.string().optional(),
+});
+
+export const mappingAgentOutputJsonSchema = z.toJSONSchema(modelResponseOutputSchema);
 
 export type IssueFormFields = {
   media_title?: string;

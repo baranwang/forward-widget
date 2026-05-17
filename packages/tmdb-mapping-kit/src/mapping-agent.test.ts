@@ -11,6 +11,7 @@ import {
   fetchTmdbMetadata,
   mappingAgentOutputJsonSchema,
   mappingArtifactPaths,
+  modelResponseOutputSchema,
   modelResponseSchema,
   modelSelection,
   normalizeIssueFields,
@@ -189,8 +190,20 @@ describe("model output validation", () => {
     },
   });
 
-  test("derives the OpenCode schema from the Zod source of truth", () => {
-    expect(mappingAgentOutputJsonSchema).toEqual(z.toJSONSchema(modelResponseSchema));
+  test("derives the OpenCode schema from an object-root Zod source of truth", () => {
+    expect(mappingAgentOutputJsonSchema).toEqual(z.toJSONSchema(modelResponseOutputSchema));
+    expect(mappingAgentOutputJsonSchema).toMatchObject({
+      type: "object",
+      properties: {
+        status: {
+          type: "string",
+          enum: ["confident", "ambiguous"],
+        },
+      },
+      required: ["status"],
+      additionalProperties: false,
+    });
+    expect(mappingAgentOutputJsonSchema).not.toHaveProperty("anyOf");
   });
 
   test("keeps the issue template free of media type input", () => {
