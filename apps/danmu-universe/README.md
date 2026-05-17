@@ -1,7 +1,7 @@
 # 通用弹幕插件 (Danmu Universe)
 
 [![NPM Version](https://img.shields.io/npm/v/@forward-widget/danmu-universe)](https://www.npmjs.com/package/@forward-widget/danmu-universe)
-[![License](https://img.shields.io/npm/l/@forward-widget/danmu-universe)](https://github.com/baranwang/forward-widgets)
+[![License](https://img.shields.io/npm/l/@forward-widget/danmu-universe)](https://github.com/baranwang/forward-widget)
 
 一个通用的弹幕聚合插件，支持从多个主流视频平台获取弹幕数据，为 Forward 生态系统提供跨平台的弹幕服务
 
