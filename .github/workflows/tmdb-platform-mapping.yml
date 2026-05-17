@@ -168,10 +168,11 @@ jobs:
 
           const mappingTitle = typeof summary?.mappingTitle === 'string' ? summary.mappingTitle.replace(/[\r\n]+/g, ' ').trim() : '';
           const mappingYear = typeof summary?.mappingYear === 'number' && Number.isFinite(summary.mappingYear) ? summary.mappingYear : null;
+          const summaryMessage = typeof summary?.message === 'string' ? summary.message.replace(/[\r\n]+/g, ' ').trim() : '';
           const hasUsableMappingTitle = mappingTitle.length > 0;
           const shouldFail = kitOutcome !== 'success' || summaryStatus !== 'success' || !hasUsableMappingTitle;
           const reason = shouldFail
-            ? `Kit outcome: ${kitOutcome}. Summary status: ${summaryStatus}.${summaryStatus === 'success' && !hasUsableMappingTitle ? ' Missing mappingTitle.' : ''}`
+            ? `Kit outcome: ${kitOutcome}. Summary status: ${summaryStatus}.${summaryMessage ? ` Message: ${summaryMessage}.` : ''}${summaryStatus === 'success' && !hasUsableMappingTitle ? ' Missing mappingTitle.' : ''}`
             : null;
 
           if (shouldFail) {
