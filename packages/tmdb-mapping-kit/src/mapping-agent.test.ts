@@ -77,7 +77,7 @@ tv
 
 https://www.themoviedb.org/tv/12345
 
-### 季号（TV 按季映射必填）
+### 季号（可选）
 
 2
 
@@ -115,6 +115,19 @@ _no response_
         notes: "",
       }),
     ).toThrow("media_type must match tmdb_url path");
+  });
+
+  test("treats missing TV season as series-level mapping", () => {
+    const fields = normalizeIssueFields({
+      media_title: "Example Show",
+      media_type: "tv",
+      tmdb_url: "https://www.themoviedb.org/tv/12345",
+      season: "",
+      platform_urls: "https://v.qq.com/x/cover/demo.html",
+      notes: "",
+    });
+
+    expect(fields.season).toBeNull();
   });
 });
 

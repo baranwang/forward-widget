@@ -10,7 +10,7 @@ const issueFieldDefinitions = [
   { id: "media_title", label: "媒体标题", required: true },
   { id: "media_type", label: "媒体类型", required: true },
   { id: "tmdb_url", label: "TMDB 链接", required: true },
-  { id: "season", label: "季号（TV 按季映射必填）", required: false },
+  { id: "season", label: "季号（可选）", required: false },
   { id: "platform_urls", label: "视频平台链接", required: true },
   { id: "notes", label: "备注（可选）", required: false },
 ] as const;
@@ -158,10 +158,8 @@ export function normalizeIssueFields(rawFields: Record<string, string>): IssueFo
       if (!Number.isInteger(season) || season < 0) {
         fail("season must be a non-negative integer");
       }
-    } else if (notes && /series[-\s]?level/i.test(notes)) {
-      season = null;
     } else {
-      fail("season is required for tv unless notes explicitly say series-level");
+      season = null;
     }
   }
 
