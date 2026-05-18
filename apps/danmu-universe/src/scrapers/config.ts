@@ -17,17 +17,6 @@ export type Unflatten<T extends Record<string, unknown>> = Simplify<
 export const globalParamsConfigSchema = z
   .object({
     "global.content.aggregation": z.stringbool().catch(true),
-    "global.content.blacklist": z
-      .string()
-      .refine((v) => {
-        try {
-          new RegExp(v);
-          return true;
-        } catch {
-          return false;
-        }
-      })
-      .catch(""),
     "global.content.conversion": z.enum(["original", "tc2sc", "sc2tc"]).catch("original"),
 
     "global.experimental.doubanHistory.enabled": z.stringbool().catch(false),

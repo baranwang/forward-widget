@@ -123,12 +123,6 @@ WidgetMetadata = {
       ],
     },
     {
-      title: "弹幕内容过滤",
-      name: "global.content.blacklist",
-      value: "",
-      type: "input",
-    },
-    {
       title: "弹幕内容繁简转换",
       name: "global.content.conversion",
       value: "original",
