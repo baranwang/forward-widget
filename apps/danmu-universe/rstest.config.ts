@@ -12,4 +12,9 @@ export default defineConfig({
     execArgv: ["--env-file=.env"],
   },
   plugins: [protobufjsPlugin()],
+  source: {
+    define: {
+      LITE_VERSION: false,
+    },
+  },
 });

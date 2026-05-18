@@ -14,11 +14,10 @@ export const lookupLocalMap = ({ type, tmdbId, season }: LocalMapLookupParams): 
   if (type === "movie") {
     return LOCAL_TMDB_PLATFORM_MAP.movie[tmdbKey] ?? null;
   }
-  const bySeason = LOCAL_TMDB_PLATFORM_MAP.tv[tmdbKey];
-  if (!bySeason) return null;
-  if (season === null || season === undefined) return bySeason.series ?? null;
-  if (!Number.isInteger(season) || season < 0) return null;
-  return bySeason[String(season)] ?? null;
+  const tvData = LOCAL_TMDB_PLATFORM_MAP.tv[tmdbKey];
+  if (!tvData) return null;
+  if (season === null || season === undefined) return tvData.series ?? null;
+  return tvData[season] ?? tvData.series ?? null;
 };
 
 export const getLocalEpisodeParams = (params: LocalMapLookupParams): GetEpisodeParam[] => {

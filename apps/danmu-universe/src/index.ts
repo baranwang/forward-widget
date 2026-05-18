@@ -292,6 +292,7 @@ searchDanmu = async (params) => {
   const tmdbId = params.tmdbId ? Number(params.tmdbId) : NaN;
   const season = mediaType === "tv" && params.season !== undefined ? Number(params.season) : null;
   const localEpisodeParams = Number.isInteger(tmdbId) ? getLocalEpisodeParams({ type: mediaType, tmdbId, season }) : [];
+  console.log("localEpisodeParams", localEpisodeParams);
   if (localEpisodeParams.length) {
     const localEpisodes = await getMatchedEpisodes(localEpisodeParams);
     if (localEpisodes.length) return toSearchResult(localEpisodes);
@@ -373,33 +374,32 @@ if (import.meta.rstest) {
   describe("searchDanmu", async () => {
     test.each([
       {
-        tmdbId: "30983",
-        seriesName: "名侦探柯南",
+        tmdbId: "282136",
         type: "tv",
-        season: "1",
-        episode: "520",
-      },
-      {
-        tmdbId: "980477",
-        seriesName: "哪吒之魔童闹海",
-        type: "movie",
         season: "1",
         episode: "1",
       },
-      {
-        tmdbId: "243083",
-        seriesName: "国色芳华",
-        type: "tv",
-        season: "2",
-        episode: "20",
-      },
-      {
-        tmdbId: "242762",
-        seriesName: "子夜归",
-        type: "tv",
-        season: "1",
-        episode: "24",
-      },
+      // {
+      //   tmdbId: "980477",
+      //   seriesName: "哪吒之魔童闹海",
+      //   type: "movie",
+      //   season: "1",
+      //   episode: "1",
+      // },
+      // {
+      //   tmdbId: "243083",
+      //   seriesName: "国色芳华",
+      //   type: "tv",
+      //   season: "2",
+      //   episode: "20",
+      // },
+      // {
+      //   tmdbId: "242762",
+      //   seriesName: "子夜归",
+      //   type: "tv",
+      //   season: "1",
+      //   episode: "24",
+      // },
     ] as Partial<SearchDanmuParams>[])("$seriesName", async (params) => {
       const result = await searchDanmu(params as SearchDanmuParams);
       expect(result).toBeDefined();

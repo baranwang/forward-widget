@@ -1,5 +1,5 @@
 import { get } from "es-toolkit/compat";
-import { qs } from "url-parse";
+import { parse as parseQueryStringify, stringify as stringifyQueryStringify } from "querystringify";
 import { DEFAULT_COLOR_INT } from "../libs/constants";
 import { Fetch } from "../libs/fetch";
 import { Logger } from "../libs/logger";
@@ -89,7 +89,7 @@ export abstract class BaseScraper<IDType extends z.ZodType = any> {
   abstract idSchema: IDType;
 
   protected parseIdString(idString: string): z.infer<IDType> | null {
-    const decodedIdString = qs.parse(idString);
+    const decodedIdString = parseQueryStringify(idString);
     const result = this.idSchema?.safeParse(decodedIdString);
     if (!result) {
       this.logger.error("parseIdString", idString, "idSchema is not defined");
@@ -102,7 +102,7 @@ export abstract class BaseScraper<IDType extends z.ZodType = any> {
     return result.data ?? null;
   }
   generateIdString(id: z.infer<IDType>) {
-    return qs.stringify(this.idSchema.parse(id) as object);
+    return stringifyQueryStringify(this.idSchema.parse(id) as object);
   }
 
   search?(params: SearchDanmuParams): Promise<ProviderDramaInfo[]>;
