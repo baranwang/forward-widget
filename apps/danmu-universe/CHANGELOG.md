@@ -1,5 +1,12 @@
 # @forward-widget/danmu-universe
 
+## 0.15.3
+
+### Patch Changes
+
+- 99426b0: 支持本地映射
+- 99426b0: 移除关键词过滤
+
 ## 0.15.2
 
 ### Patch Changes
