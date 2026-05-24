@@ -10,5 +10,6 @@
     "allowImportingTsExtensions": true,
     "rootDir": "src"
   },
-  "include": ["src"]
+  "include": ["src"],
+  "references": [{ "path": "../scraper-kit" }]
 }

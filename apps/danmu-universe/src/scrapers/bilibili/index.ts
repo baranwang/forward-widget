@@ -1,2 +1,1 @@
-export * from "./bilibili";
-export type { BilibiliId } from "./schema";
+export * from "@forward-widget/scraper-kit";

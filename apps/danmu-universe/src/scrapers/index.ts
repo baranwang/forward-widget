@@ -1,4 +1,5 @@
-import { isEqual, keyBy, sortBy, uniqWith } from "es-toolkit";
+import { createScraperRegistry, type ScraperProviderMap } from "@forward-widget/scraper-kit";
+import { isEqual, sortBy, uniqWith } from "es-toolkit";
 import { MediaType } from "../libs/constants";
 import { QihooMatcher } from "../matchers/360kan";
 import type {
@@ -8,15 +9,7 @@ import type {
   ProviderEpisodeInfo,
   ProviderSegmentInfo,
 } from "./base";
-import { BilibiliScraper } from "./bilibili";
 import { type GlobalParamsConfig, globalParamsConfigSchema } from "./config";
-import { IqiyiScraper } from "./iqiyi";
-import { MgTVScraper } from "./mgtv";
-import { RenRenScraper } from "./renren";
-import { TencentScraper } from "./tencent";
-import { YoukuScraper } from "./youku";
-
-const scrapers = [TencentScraper, YoukuScraper, IqiyiScraper, BilibiliScraper, RenRenScraper, MgTVScraper];
 
 export type GetEpisodeParam = {
   provider: string;
@@ -29,10 +22,12 @@ export class Scraper {
 
   private globalParams: GlobalParamsConfig = {} as GlobalParamsConfig;
 
+  private _scraperMap: ScraperProviderMap;
+
   constructor() {
-    scrapers.forEach((Scraper) => {
-      this.scrapers.push(new Scraper());
-    });
+    const registry = createScraperRegistry();
+    this.scrapers = registry.scrapers;
+    this._scraperMap = registry.scraperMap;
   }
 
   get conversionConverter() {
@@ -56,24 +51,8 @@ export class Scraper {
     return null;
   }
 
-  /**
-   * 获取 provider 名称到 scraper 实例的映射
-   * 使用懒加载和缓存提升性能
-   */
-  private _scraperMap?: Record<string, BaseScraper>;
-
-  get scraperMap(): Record<string, BaseScraper> & {
-    tencent: TencentScraper;
-    youku: YoukuScraper;
-    iqiyi: IqiyiScraper;
-    bilibili: BilibiliScraper;
-    renren: RenRenScraper;
-    mgtv: MgTVScraper;
-  } {
-    if (!this._scraperMap) {
-      this._scraperMap = keyBy(this.scrapers, (scraper) => scraper.providerName);
-    }
-    return this._scraperMap as any;
+  get scraperMap(): ScraperProviderMap {
+    return this._scraperMap;
   }
 
   private async getSegmentsByProvider(provider: string, idString: string): Promise<ProviderSegmentInfo[]> {
@@ -208,7 +187,7 @@ export class Scraper {
 
   private getEpisodeNumber(mediaType: MediaType, episode?: string) {
     if (mediaType === MediaType.TV && episode) {
-      return parseInt(episode);
+      return parseInt(episode, 10);
     }
     return undefined;
   }
@@ -242,7 +221,7 @@ export class Scraper {
         if (!scraper) continue;
         const idString = scraper.generateIdString({ dramaId: drama.dramaId });
         options.push({ provider: drama.provider, idString, episodeNumber });
-      } catch (error) {}
+      } catch (_error) {}
     }
 
     try {
@@ -251,7 +230,7 @@ export class Scraper {
         const searchOptions = await qihooMatcher.getEpisodeParams(searchParams);
         options.push(...searchOptions);
       }
-    } catch (error) {}
+    } catch (_error) {}
 
     return options;
   }

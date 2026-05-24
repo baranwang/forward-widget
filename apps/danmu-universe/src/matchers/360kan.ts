@@ -1,3 +1,4 @@
+import { parseProviderUrl } from "@forward-widget/scraper-kit";
 import { compact } from "es-toolkit";
 import parseUrl from "url-parse";
 import { MediaType, searchDanmuParamsSchema } from "../libs/constants";
@@ -87,25 +88,43 @@ export class QihooMatcher {
       }
 
       if (item.playlinks.qq) {
-        const cid = item.playlinks.qq.match(/\/cover\/([^/]+?)(\/|.html|$)/)?.[1];
-        if (cid) {
+        const qqParsed = parseProviderUrl(item.playlinks.qq);
+        if (qqParsed?.provider === "tencent") {
           results.push({
             provider: "tencent",
-            idString: scraper.scraperMap.tencent.generateIdString({ cid }),
+            idString: scraper.scraperMap.tencent.generateIdString(qqParsed.id),
             episodeNumber,
           });
+        } else {
+          const cid = item.playlinks.qq.match(/\/cover\/([^/]+?)(\/|.html|$)/)?.[1];
+          if (cid) {
+            results.push({
+              provider: "tencent",
+              idString: scraper.scraperMap.tencent.generateIdString({ cid }),
+              episodeNumber,
+            });
+          }
         }
       }
 
       if (item.playlinks.youku) {
-        const urlObj = parseUrl(item.playlinks.youku, true);
-        const { vid, showid: showId } = urlObj.query;
-        if (vid || showId) {
+        const youkuParsed = parseProviderUrl(item.playlinks.youku);
+        if (youkuParsed?.provider === "youku") {
           results.push({
             provider: "youku",
-            idString: scraper.scraperMap.youku.generateIdString({ vid, showId }),
+            idString: scraper.scraperMap.youku.generateIdString(youkuParsed.id),
             episodeNumber,
           });
+        } else {
+          const urlObj = parseUrl(item.playlinks.youku, true);
+          const { vid, showid: showId } = urlObj.query;
+          if (vid || showId) {
+            results.push({
+              provider: "youku",
+              idString: scraper.scraperMap.youku.generateIdString({ vid, showId }),
+              episodeNumber,
+            });
+          }
         }
       }
 
@@ -135,13 +154,22 @@ export class QihooMatcher {
       }
 
       if (item.playlinks.imgo) {
-        const dramaId = item.playlinks.imgo.match(/\/b\/([^/]+)\//)?.[1];
-        if (dramaId) {
+        const mgtvParsed = parseProviderUrl(item.playlinks.imgo);
+        if (mgtvParsed?.provider === "mgtv") {
           results.push({
             provider: "mgtv",
-            idString: scraper.scraperMap.mgtv.generateIdString({ dramaId }),
+            idString: scraper.scraperMap.mgtv.generateIdString(mgtvParsed.id),
             episodeNumber,
           });
+        } else {
+          const dramaId = item.playlinks.imgo.match(/\/b\/([^/]+)\//)?.[1];
+          if (dramaId) {
+            results.push({
+              provider: "mgtv",
+              idString: scraper.scraperMap.mgtv.generateIdString({ dramaId }),
+              episodeNumber,
+            });
+          }
         }
       }
     }

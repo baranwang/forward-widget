@@ -1,2 +1,1 @@
-export type { YoukuId } from "./schema";
-export * from "./youku";
+export * from "@forward-widget/scraper-kit";

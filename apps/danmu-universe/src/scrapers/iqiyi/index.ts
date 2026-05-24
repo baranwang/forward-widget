@@ -1,2 +1,1 @@
-export * from "./iqiyi";
-export type { IqiyiId } from "./schema";
+export * from "@forward-widget/scraper-kit";

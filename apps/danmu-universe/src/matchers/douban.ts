@@ -1,3 +1,4 @@
+import { parseProviderUrl } from "@forward-widget/scraper-kit";
 import { compact } from "es-toolkit";
 import parseUrl from "url-parse";
 import { type MediaType, searchDanmuParamsSchema } from "../libs/constants";
@@ -169,45 +170,74 @@ export class DoubanMatcher {
       if (!vendor) {
         continue;
       }
+      const parsed = parseProviderUrl(vendor.uri);
       const uriObj = parseUrl(vendor.uri, true);
       switch (vendor.id) {
         case "qq": {
-          const { cid, vid } = uriObj.query;
-          if (cid) {
+          if (parsed?.provider === "tencent") {
             results.push({
               provider: "tencent",
-              idString: scraper.scraperMap.tencent.generateIdString({ cid, vid }),
+              idString: scraper.scraperMap.tencent.generateIdString(parsed.id),
             });
+          } else {
+            const { cid, vid } = uriObj.query;
+            if (cid) {
+              results.push({
+                provider: "tencent",
+                idString: scraper.scraperMap.tencent.generateIdString({ cid, vid }),
+              });
+            }
           }
           break;
         }
         case "iqiyi": {
-          const { tvid: entityId } = uriObj.query;
-          if (entityId) {
+          if (parsed?.provider === "iqiyi") {
             results.push({
               provider: "iqiyi",
-              idString: scraper.scraperMap.iqiyi.generateIdString({ entityId }),
+              idString: scraper.scraperMap.iqiyi.generateIdString(parsed.id),
             });
+          } else {
+            const { tvid: entityId } = uriObj.query;
+            if (entityId) {
+              results.push({
+                provider: "iqiyi",
+                idString: scraper.scraperMap.iqiyi.generateIdString({ entityId }),
+              });
+            }
           }
           break;
         }
         case "youku": {
-          const { showid: showId, vid } = uriObj.query;
-          if (showId || vid) {
+          if (parsed?.provider === "youku") {
             results.push({
               provider: "youku",
-              idString: scraper.scraperMap.youku.generateIdString({ showId, vid }),
+              idString: scraper.scraperMap.youku.generateIdString(parsed.id),
             });
+          } else {
+            const { showid: showId, vid } = uriObj.query;
+            if (showId || vid) {
+              results.push({
+                provider: "youku",
+                idString: scraper.scraperMap.youku.generateIdString({ showId, vid }),
+              });
+            }
           }
           break;
         }
         case "bilibili": {
-          const seasonId = uriObj.pathname.split("/").pop();
-          if (seasonId && /\d+/.test(seasonId)) {
+          if (parsed?.provider === "bilibili") {
             results.push({
               provider: "bilibili",
-              idString: scraper.scraperMap.bilibili.generateIdString({ seasonId }),
+              idString: scraper.scraperMap.bilibili.generateIdString(parsed.id),
             });
+          } else {
+            const seasonId = uriObj.pathname.split("/").pop();
+            if (seasonId && /\d+/.test(seasonId)) {
+              results.push({
+                provider: "bilibili",
+                idString: scraper.scraperMap.bilibili.generateIdString({ seasonId }),
+              });
+            }
           }
           break;
         }

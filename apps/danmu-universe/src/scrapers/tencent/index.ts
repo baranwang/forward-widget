@@ -1,2 +1,1 @@
-export type { TencentId } from "./schema";
-export * from "./tencent";
+export * from "@forward-widget/scraper-kit";

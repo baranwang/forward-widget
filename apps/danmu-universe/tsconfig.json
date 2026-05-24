@@ -15,6 +15,7 @@
   "references": [
     { "path": "../../packages/fetch" },
     { "path": "../../packages/storage" },
+    { "path": "../../packages/scraper-kit" },
     { "path": "../../packages/utils" }
   ]
 }

@@ -1,6 +1,5 @@
 import { pluginForwardWidget } from "@forward-widget/rslib-plugin";
 import { defineConfig } from "@rslib/core";
-import { protobufjsPlugin } from "rsbuild-plugin-protobufjs";
 import pkg from "./package.json";
 
 export default defineConfig({
@@ -63,5 +62,5 @@ export default defineConfig({
       },
     },
   },
-  plugins: [protobufjsPlugin(), pluginForwardWidget()],
+  plugins: [pluginForwardWidget()],
 });

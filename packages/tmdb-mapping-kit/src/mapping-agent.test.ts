@@ -12,7 +12,6 @@ import {
   mappingAgentOutputJsonSchema,
   mappingArtifactPaths,
   modelResponseOutputSchema,
-  modelResponseSchema,
   modelSelection,
   normalizeIssueFields,
   parseCliArgs,
@@ -459,7 +458,7 @@ describe("cli safe failure summary", () => {
 });
 
 describe("runMappingAgent integration", () => {
-  test("writes success summary with canonical title, year, and changed files", async () => {
+  test("uses OpenCode fallback for unsupported provider URLs", async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "tmdb-mapping-run-"));
     const repoRoot = tempDir;
     const dataPath = path.join(repoRoot, "packages", "tmdb-mapping-kit", "data", "tmdb-platform-map.jsonl");
@@ -478,7 +477,7 @@ https://www.themoviedb.org/tv/282136
 
 ### 视频平台链接
 
-https://v.qq.com/x/cover/demo.html
+https://example.com/watch/unknown-provider
 `;
     const summaryPath = path.join(tempDir, "summary.json");
     const fetchImpl: typeof fetch = async () =>
@@ -512,7 +511,7 @@ https://v.qq.com/x/cover/demo.html
                       {
                         provider: "iqiyi",
                         idString: "demo",
-                        url: "https://v.qq.com/x/cover/demo.html",
+                        url: "https://example.com/watch/unknown-provider",
                       },
                     ],
                   },
@@ -628,6 +627,144 @@ https://www.bilibili.com/bangumi/play/ep3409878
       year: 2018,
       season: null,
       providers: [{ provider: "bilibili", idString: "seasonId=45962" }],
+    });
+  });
+
+  test("resolves Bilibili season URLs without OpenCode", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "tmdb-mapping-run-"));
+    const repoRoot = tempDir;
+    const dataPath = path.join(repoRoot, "packages", "tmdb-mapping-kit", "data", "tmdb-platform-map.jsonl");
+    fs.mkdirSync(path.dirname(dataPath), { recursive: true });
+    fs.mkdirSync(path.join(repoRoot, ".changeset"), { recursive: true });
+    fs.writeFileSync(dataPath, "");
+
+    const issueBody = `### 媒体标题（可选）
+
+_No response_
+
+### TMDB 链接
+
+https://www.themoviedb.org/tv/282136
+
+### 季号（可选）
+
+_No response_
+
+### 视频平台链接
+
+https://www.bilibili.com/bangumi/play/ss45962
+`;
+    const summaryPath = path.join(tempDir, "summary.json");
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input);
+      if (url.startsWith("https://api.themoviedb.org/3/tv/282136")) {
+        return {
+          ok: true,
+          json: async () => ({ name: "将夜", first_air_date: "2018-10-31" }),
+        } as Response;
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    };
+
+    const mockedCreateOpencode = rs.mocked(createOpencode);
+    mockedCreateOpencode.mockReset();
+
+    const summary = await runMappingAgent({
+      issueNumber: 7,
+      issueBody,
+      repoRoot,
+      summaryPath,
+      env: {
+        TMDB_ACCESS_TOKEN: "tmdb-token",
+      },
+      fetchImpl,
+    });
+
+    expect(summary).toMatchObject({
+      status: "success",
+      issueNumber: 7,
+      mappingTitle: "将夜",
+      mappingYear: 2018,
+    });
+    expect(mockedCreateOpencode).not.toHaveBeenCalled();
+
+    const [jsonl] = fs.readFileSync(dataPath, "utf8").trim().split(/\r?\n/);
+    expect(JSON.parse(jsonl)).toMatchObject({
+      type: "tv",
+      tmdbId: 282136,
+      title: "将夜",
+      year: 2018,
+      season: null,
+      providers: [{ provider: "bilibili", idString: "seasonId=45962" }],
+    });
+  });
+
+  test("resolves MGTV drama URLs without OpenCode", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "tmdb-mapping-run-"));
+    const repoRoot = tempDir;
+    const dataPath = path.join(repoRoot, "packages", "tmdb-mapping-kit", "data", "tmdb-platform-map.jsonl");
+    fs.mkdirSync(path.dirname(dataPath), { recursive: true });
+    fs.mkdirSync(path.join(repoRoot, ".changeset"), { recursive: true });
+    fs.writeFileSync(dataPath, "");
+
+    const issueBody = `### 媒体标题（可选）
+
+_No response_
+
+### TMDB 链接
+
+https://www.themoviedb.org/tv/97199
+
+### 季号（可选）
+
+6
+
+### 视频平台链接
+
+https://www.mgtv.com/h/860862.html
+`;
+    const summaryPath = path.join(tempDir, "summary.json");
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input);
+      if (url.startsWith("https://api.themoviedb.org/3/tv/97199")) {
+        return {
+          ok: true,
+          json: async () => ({ name: "妻子的浪漫旅行", first_air_date: "2018-08-15" }),
+        } as Response;
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    };
+
+    const mockedCreateOpencode = rs.mocked(createOpencode);
+    mockedCreateOpencode.mockReset();
+
+    const summary = await runMappingAgent({
+      issueNumber: 6,
+      issueBody,
+      repoRoot,
+      summaryPath,
+      env: {
+        TMDB_ACCESS_TOKEN: "tmdb-token",
+      },
+      fetchImpl,
+    });
+
+    expect(summary).toMatchObject({
+      status: "success",
+      issueNumber: 6,
+      mappingTitle: "妻子的浪漫旅行",
+      mappingYear: 2018,
+    });
+    expect(mockedCreateOpencode).not.toHaveBeenCalled();
+
+    const [jsonl] = fs.readFileSync(dataPath, "utf8").trim().split(/\r?\n/);
+    expect(JSON.parse(jsonl)).toMatchObject({
+      type: "tv",
+      tmdbId: 97199,
+      title: "妻子的浪漫旅行",
+      year: 2018,
+      season: 6,
+      providers: [{ provider: "mgtv", idString: "dramaId=860862" }],
     });
   });
 });

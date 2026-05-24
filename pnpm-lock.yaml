@@ -41,6 +41,9 @@ importers:
       '@forward-widget/libs-utils':
         specifier: workspace:^
         version: link:../../packages/utils
+      '@forward-widget/scraper-kit':
+        specifier: workspace:^
+        version: link:../../packages/scraper-kit
       '@types/querystringify':
         specifier: ^2.0.2
         version: 2.0.2
@@ -59,9 +62,6 @@ importers:
       opencc-js:
         specifier: ^1.0.5
         version: 1.0.5
-      protobufjs:
-        specifier: ^7.5.4
-        version: 7.5.4
       querystringify:
         specifier: ^2.2.0
         version: 2.2.0
@@ -102,9 +102,6 @@ importers:
       '@types/url-parse':
         specifier: ^1.4.11
         version: 1.4.11
-      rsbuild-plugin-protobufjs:
-        specifier: ^0.0.0
-        version: 0.0.0(protobufjs@7.5.4)
       type-fest:
         specifier: ^4.41.0
         version: 4.41.0
@@ -165,6 +162,67 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/scraper-kit:
+    dependencies:
+      '@forward-widget/libs-fetch':
+        specifier: workspace:^
+        version: link:../fetch
+      '@forward-widget/libs-storage':
+        specifier: workspace:^
+        version: link:../storage
+      crypto-js:
+        specifier: ^4.2.0
+        version: 4.2.0
+      date-fns:
+        specifier: ^4.1.0
+        version: 4.1.0
+      es-toolkit:
+        specifier: ^1.39.9
+        version: 1.39.9
+      fast-xml-parser:
+        specifier: ^5.2.5
+        version: 5.2.5
+      protobufjs:
+        specifier: ^7.5.4
+        version: 7.5.4
+      querystringify:
+        specifier: ^2.2.0
+        version: 2.2.0
+      url-parse:
+        specifier: ^1.5.10
+        version: 1.5.10
+      zod:
+        specifier: 4.0.17
+        version: 4.0.17
+    devDependencies:
+      '@rslib/core':
+        specifier: ^0.18.2
+        version: 0.18.2(typescript@5.9.3)
+      '@rstest/adapter-rslib':
+        specifier: ^0.2.2
+        version: 0.2.2(@rslib/core@0.18.2(typescript@5.9.3))(@rstest/core@0.9.10(@module-federation/runtime-tools@0.21.6)(core-js@3.47.0))(typescript@5.9.3)
+      '@rstest/core':
+        specifier: ^0.9.10
+        version: 0.9.10(@module-federation/runtime-tools@0.21.6)(core-js@3.47.0)
+      '@types/crypto-js':
+        specifier: ^4.2.2
+        version: 4.2.2
+      '@types/node':
+        specifier: ^24.10.1
+        version: 24.12.4
+      '@types/querystringify':
+        specifier: ^2.0.2
+        version: 2.0.2
+      '@types/url-parse':
+        specifier: ^1.4.11
+        version: 1.4.11
+      rsbuild-plugin-protobufjs:
+        specifier: ^0.0.0
+        version: 0.0.0(protobufjs@7.5.4)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/storage:
     dependencies:
       '@forward-widget/libs-utils':
@@ -189,6 +247,9 @@ importers:
 
   packages/tmdb-mapping-kit:
     dependencies:
+      '@forward-widget/scraper-kit':
+        specifier: workspace:^
+        version: link:../scraper-kit
       '@opencode-ai/sdk':
         specifier: ^1.15.3
         version: 1.15.3
@@ -2892,6 +2953,13 @@ snapshots:
       '@swc/helpers': 0.5.21
 
   '@rspack/lite-tapable@1.1.0': {}
+
+  '@rstest/adapter-rslib@0.2.2(@rslib/core@0.18.2(typescript@5.9.3))(@rstest/core@0.9.10(@module-federation/runtime-tools@0.21.6)(core-js@3.47.0))(typescript@5.9.3)':
+    dependencies:
+      '@rslib/core': 0.18.2(typescript@5.9.3)
+      '@rstest/core': 0.9.10(@module-federation/runtime-tools@0.21.6)(core-js@3.47.0)
+    optionalDependencies:
+      typescript: 5.9.3
 
   '@rstest/adapter-rslib@0.2.2(@rslib/core@0.21.5(@module-federation/runtime-tools@0.21.6)(core-js@3.47.0)(typescript@6.0.3))(@rstest/core@0.9.10(@module-federation/runtime-tools@0.21.6)(core-js@3.47.0))(typescript@6.0.3)':
     dependencies:

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { parseProviderUrl } from "@forward-widget/scraper-kit";
 import type { Config, OutputFormat } from "@opencode-ai/sdk/v2";
 import { createOpencode } from "@opencode-ai/sdk/v2";
 import { z } from "zod";
@@ -286,11 +287,13 @@ export function buildMappingPrompt(fields: IssueFormFields, metadata: TmdbMetada
   ].join("\n\n");
 }
 
+const deterministicProviders = new Set(["tencent", "youku", "iqiyi", "bilibili", "mgtv", "renren"] as const);
+
 function bilibiliIdString(seasonId: string): string {
   return new URLSearchParams({ seasonId }).toString();
 }
 
-async function resolveBilibiliProvider(
+async function resolveBilibiliEpisodeProvider(
   platformUrl: string,
   fetchImpl: typeof fetch,
 ): Promise<MappingCandidateProvider | null> {
@@ -299,15 +302,12 @@ async function resolveBilibiliProvider(
     return null;
   }
 
-  const bangumiPath = /^\/bangumi\/play\/(ss|ep)(\d+)\/?$/.exec(url.pathname);
+  const bangumiPath = /^\/bangumi\/play\/ep(\d+)\/?$/.exec(url.pathname);
   if (!bangumiPath) {
     return null;
   }
 
-  const [, kind, id] = bangumiPath;
-  if (kind === "ss") {
-    return { provider: "bilibili", idString: bilibiliIdString(id), url: url.href };
-  }
+  const [, id] = bangumiPath;
 
   const response = await fetchImpl(`https://api.bilibili.com/pgc/view/web/season?ep_id=${id}`);
   if (!response.ok) {
@@ -328,11 +328,24 @@ async function resolvePlatformProviders(
 ): Promise<MappingCandidateProvider[] | null> {
   const providers: MappingCandidateProvider[] = [];
   for (const platformUrl of platformUrls) {
-    const provider = await resolveBilibiliProvider(platformUrl, fetchImpl);
-    if (!provider) {
+    const parsed = parseProviderUrl(platformUrl);
+    if (parsed) {
+      if (!deterministicProviders.has(parsed.provider)) {
+        return null;
+      }
+      providers.push({
+        provider: parsed.provider,
+        idString: parsed.idString,
+        url: parsed.url,
+      });
+      continue;
+    }
+
+    const bilibiliEpisodeProvider = await resolveBilibiliEpisodeProvider(platformUrl, fetchImpl);
+    if (!bilibiliEpisodeProvider) {
       return null;
     }
-    providers.push(provider);
+    providers.push(bilibiliEpisodeProvider);
   }
   return providers;
 }

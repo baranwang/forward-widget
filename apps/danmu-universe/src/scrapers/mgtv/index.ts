@@ -1,1 +1,1 @@
-export * from "./mgtv";
+export * from "@forward-widget/scraper-kit";

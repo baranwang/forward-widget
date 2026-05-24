@@ -1,0 +1,44 @@
+{
+  "name": "@forward-widget/scraper-kit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rslib",
+    "dev": "rslib --watch",
+    "test": "rstest"
+  },
+  "dependencies": {
+    "@forward-widget/libs-fetch": "workspace:^",
+    "@forward-widget/libs-storage": "workspace:^",
+    "crypto-js": "^4.2.0",
+    "date-fns": "^4.1.0",
+    "es-toolkit": "^1.39.9",
+    "fast-xml-parser": "^5.2.5",
+    "protobufjs": "^7.5.4",
+    "querystringify": "^2.2.0",
+    "url-parse": "^1.5.10",
+    "zod": "4.0.17"
+  },
+  "devDependencies": {
+    "@rslib/core": "^0.18.2",
+    "@rstest/adapter-rslib": "^0.2.2",
+    "@rstest/core": "^0.9.10",
+    "@types/crypto-js": "^4.2.2",
+    "@types/node": "^24.10.1",
+    "@types/querystringify": "^2.0.2",
+    "@types/url-parse": "^1.4.11",
+    "rsbuild-plugin-protobufjs": "^0.0.0",
+    "typescript": "^5.9.3"
+  }
+}

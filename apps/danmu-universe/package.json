@@ -19,13 +19,13 @@
     "@forward-widget/libs-fetch": "workspace:^",
     "@forward-widget/libs-storage": "workspace:^",
     "@forward-widget/libs-utils": "workspace:^",
+    "@forward-widget/scraper-kit": "workspace:^",
     "@types/querystringify": "^2.0.2",
     "crypto-js": "^4.2.0",
     "date-fns": "^4.1.0",
     "es-toolkit": "^1.39.9",
     "fast-xml-parser": "^5.2.5",
     "opencc-js": "^1.0.5",
-    "protobufjs": "^7.5.4",
     "querystringify": "^2.2.0",
     "url-parse": "^1.5.10",
     "zod": "4.0.17"
@@ -41,7 +41,6 @@
     "@types/node": "^22.16.0",
     "@types/opencc-js": "^1.0.3",
     "@types/url-parse": "^1.4.11",
-    "rsbuild-plugin-protobufjs": "^0.0.0",
     "type-fest": "^4.41.0",
     "typescript": "^5.9.3"
   },
