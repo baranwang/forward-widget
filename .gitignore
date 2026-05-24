@@ -43,4 +43,7 @@ yarn-error.log*
 *.tsbuildinfo
 apps/nsfw
 
-.sisyphus/
+.omo/*
+!.omo/notepads/
+!.omo/notepads/**/
+!.omo/notepads/**/*
