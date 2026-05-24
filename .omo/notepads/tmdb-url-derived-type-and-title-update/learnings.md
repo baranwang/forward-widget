@@ -1,0 +1,9 @@
+- Issue template now omits the media type dropdown; parser inference relies on the TMDB URL path instead.
+- Media title can be left blank in the form, with template copy pointing users to TMDB as the source of truth for the canonical title.
+- Legacy issue bodies that still contain a 媒体类型 heading are tolerated because the parser now ignores that heading.
+- normalizeIssueFields now derives media_type from the TMDB URL and ignores stale issue-body media_type values.
+- fetchTmdbMetadata uses TMDB_ACCESS_TOKEN plus TMDB_LANGUAGE defaulting to zh-CN, and authoritative title/year feed prompt and canonical mapping.
+- Successful summaries now carry mappingTitle and mappingYear from TMDB metadata.
+- Workflow now exports TMDB_ACCESS_TOKEN and TMDB_LANGUAGE for the repo-owned mapping agent step.
+- Summary evaluation now normalizes mappingTitle to a single line, fails safely when a success summary lacks a usable title, and emits mapping_title, mapping_year, and issue_title outputs for downstream title updates.
+- Tv canonical mappings also carry optional year now, which keeps the success-summary year path aligned with schema typing and build output.

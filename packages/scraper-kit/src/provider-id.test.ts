@@ -54,5 +54,11 @@ describe("provider-id contracts", () => {
     expect(() => generateProviderIdString("bilibili", { aid: "1" })).toThrow(/bilibili/i);
     expect(() => generateProviderIdString("mgtv", { videoId: "123" })).toThrow(/mgtv/i);
     expect(() => generateProviderIdString("renren", { episodeId: 456 })).toThrow(/renren/i);
+    expect(() => generateProviderIdString("renren", { dramaId: "" })).toThrow(/renren/i);
+  });
+
+  test("parseProviderIdString rejects empty RenRen required numeric fields", () => {
+    expect(() => parseProviderIdString("renren", "dramaId=")).toThrow(/renren/i);
+    expect(parseProviderIdString("renren", "dramaId=123&episodeId=")).toEqual({ dramaId: 123 });
   });
 });

@@ -3,26 +3,34 @@ export type {
   IqiyiId,
   MgtvId,
   ProviderId,
-  ProviderName,
   RenrenId,
   TencentId,
   YoukuId,
 } from "./provider-id";
 export {
   generateProviderIdString,
-  isProviderName,
   parseProviderIdString,
-  providerNames,
 } from "./provider-id";
+export type { ProviderName } from "./provider-metadata";
+export { isProviderName, providerNames } from "./provider-metadata";
 export type { ParsedProviderUrl } from "./provider-url";
 export { parseProviderUrl, parseProviderUrlFor } from "./provider-url";
-export type { HttpResponse, RequestOptions } from "./runtime";
+export type {
+  FetchHttpAdapter,
+  FetchOptions,
+  FetchStorageAdapter,
+  HttpAdapterRequestOptions,
+  HttpResponse,
+  RequestOptions,
+} from "./runtime";
 export {
   base64ToUint8Array,
   DEFAULT_COLOR_HEX,
   DEFAULT_COLOR_INT,
   Fetch,
   generateUUID,
+  initializeFetchAdapter,
+  initializeFetchStorageAdapter,
   Logger,
   MediaType,
   safeJsonParse,

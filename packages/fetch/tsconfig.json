@@ -15,6 +15,5 @@
     "rootDir": "./src",
     "declarationDir": "./dist"
   },
-  "include": ["src"],
-  "references": [{ "path": "../storage" }]
+  "include": ["src"]
 }

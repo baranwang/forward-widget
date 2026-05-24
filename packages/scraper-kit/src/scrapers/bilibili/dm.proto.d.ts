@@ -1,5 +1,6 @@
 import * as $protobuf from "protobufjs";
 import Long = require("long");
+
 /** Namespace biliproto. */
 export namespace biliproto {
 
@@ -15,127 +16,83 @@ export namespace biliproto {
                 /** Namespace v1. */
                 namespace v1 {
 
-                    /** Properties of a DanmakuElem. */
-                    interface IDanmakuElem {
-
-                        /** DanmakuElem id */
-                        id?: (number|Long|null);
-
-                        /** DanmakuElem progress */
-                        progress?: (number|null);
-
-                        /** DanmakuElem mode */
-                        mode?: (number|null);
-
-                        /** DanmakuElem fontsize */
-                        fontsize?: (number|null);
-
-                        /** DanmakuElem color */
-                        color?: (number|null);
-
-                        /** DanmakuElem midHash */
-                        midHash?: (string|null);
-
-                        /** DanmakuElem content */
-                        content?: (string|null);
-
-                        /** DanmakuElem ctime */
-                        ctime?: (number|Long|null);
-
-                        /** DanmakuElem weight */
-                        weight?: (number|null);
-
-                        /** DanmakuElem action */
-                        action?: (string|null);
-
-                        /** DanmakuElem pool */
-                        pool?: (number|null);
-
-                        /** DanmakuElem idStr */
-                        idStr?: (string|null);
-
-                        /** DanmakuElem attr */
-                        attr?: (number|null);
-
-                        /** DanmakuElem animation */
-                        animation?: (string|null);
-
-                        /** DanmakuElem likeNum */
-                        likeNum?: (number|null);
-
-                        /** DanmakuElem colorV2 */
-                        colorV2?: (string|null);
-
-                        /** DanmakuElem dmTypeV2 */
-                        dmTypeV2?: (number|null);
+                    /**
+                     * Properties of a DanmakuElem.
+                     * @deprecated Use biliproto.community.service.dm.v1.DanmakuElem.$Properties instead.
+                     */
+                    interface IDanmakuElem extends biliproto.community.service.dm.v1.DanmakuElem.$Properties {
                     }
 
                     /** Represents a DanmakuElem. */
-                    class DanmakuElem implements IDanmakuElem {
+                    class DanmakuElem {
 
                         /**
                          * Constructs a new DanmakuElem.
                          * @param [properties] Properties to set
                          */
-                        constructor(properties?: biliproto.community.service.dm.v1.IDanmakuElem);
+                        constructor(properties?: biliproto.community.service.dm.v1.DanmakuElem.$Properties);
+
+                        /** Unknown fields preserved while decoding */
+                        $unknowns?: Uint8Array[];
 
                         /** DanmakuElem id. */
-                        public id: (number|Long);
+                        id: (number|Long);
 
                         /** DanmakuElem progress. */
-                        public progress: number;
+                        progress: number;
 
                         /** DanmakuElem mode. */
-                        public mode: number;
+                        mode: number;
 
                         /** DanmakuElem fontsize. */
-                        public fontsize: number;
+                        fontsize: number;
 
                         /** DanmakuElem color. */
-                        public color: number;
+                        color: number;
 
                         /** DanmakuElem midHash. */
-                        public midHash: string;
+                        midHash: string;
 
                         /** DanmakuElem content. */
-                        public content: string;
+                        content: string;
 
                         /** DanmakuElem ctime. */
-                        public ctime: (number|Long);
+                        ctime: (number|Long);
 
                         /** DanmakuElem weight. */
-                        public weight: number;
+                        weight: number;
 
                         /** DanmakuElem action. */
-                        public action: string;
+                        action: string;
 
                         /** DanmakuElem pool. */
-                        public pool: number;
+                        pool: number;
 
                         /** DanmakuElem idStr. */
-                        public idStr: string;
+                        idStr: string;
 
                         /** DanmakuElem attr. */
-                        public attr: number;
+                        attr: number;
 
                         /** DanmakuElem animation. */
-                        public animation: string;
+                        animation: string;
 
                         /** DanmakuElem likeNum. */
-                        public likeNum: number;
+                        likeNum: number;
 
                         /** DanmakuElem colorV2. */
-                        public colorV2: string;
+                        colorV2: string;
 
                         /** DanmakuElem dmTypeV2. */
-                        public dmTypeV2: number;
+                        dmTypeV2: number;
 
                         /**
                          * Creates a new DanmakuElem instance using the specified properties.
                          * @param [properties] Properties to set
                          * @returns DanmakuElem instance
                          */
-                        public static create(properties?: biliproto.community.service.dm.v1.IDanmakuElem): biliproto.community.service.dm.v1.DanmakuElem;
+                        static create(properties: biliproto.community.service.dm.v1.DanmakuElem.$Shape): biliproto.community.service.dm.v1.DanmakuElem & biliproto.community.service.dm.v1.DanmakuElem.$Shape;
+                        static create(properties?: biliproto.community.service.dm.v1.DanmakuElem.$Properties): biliproto.community.service.dm.v1.DanmakuElem;
 
                         /**
                          * Encodes the specified DanmakuElem message. Does not implicitly {@link biliproto.community.service.dm.v1.DanmakuElem.verify|verify} messages.
@@ -143,7 +100,7 @@ export namespace biliproto {
                          * @param [writer] Writer to encode to
                          * @returns Writer
                          */
-                        public static encode(message: biliproto.community.service.dm.v1.IDanmakuElem, writer?: $protobuf.Writer): $protobuf.Writer;
+                        static encode(message: biliproto.community.service.dm.v1.DanmakuElem.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
 
                         /**
                          * Encodes the specified DanmakuElem message, length delimited. Does not implicitly {@link biliproto.community.service.dm.v1.DanmakuElem.verify|verify} messages.
@@ -151,40 +108,40 @@ export namespace biliproto {
                          * @param [writer] Writer to encode to
                          * @returns Writer
                          */
-                        public static encodeDelimited(message: biliproto.community.service.dm.v1.IDanmakuElem, writer?: $protobuf.Writer): $protobuf.Writer;
+                        static encodeDelimited(message: biliproto.community.service.dm.v1.DanmakuElem.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
 
                         /**
                          * Decodes a DanmakuElem message from the specified reader or buffer.
                          * @param reader Reader or buffer to decode from
                          * @param [length] Message length if known beforehand
-                         * @returns DanmakuElem
+                         * @returns {biliproto.community.service.dm.v1.DanmakuElem & biliproto.community.service.dm.v1.DanmakuElem.$Shape} DanmakuElem
                          * @throws {Error} If the payload is not a reader or valid buffer
                          * @throws {$protobuf.util.ProtocolError} If required fields are missing
                          */
-                        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): biliproto.community.service.dm.v1.DanmakuElem;
+                        static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): biliproto.community.service.dm.v1.DanmakuElem & biliproto.community.service.dm.v1.DanmakuElem.$Shape;
 
                         /**
                          * Decodes a DanmakuElem message from the specified reader or buffer, length delimited.
                          * @param reader Reader or buffer to decode from
-                         * @returns DanmakuElem
+                         * @returns {biliproto.community.service.dm.v1.DanmakuElem & biliproto.community.service.dm.v1.DanmakuElem.$Shape} DanmakuElem
                          * @throws {Error} If the payload is not a reader or valid buffer
                          * @throws {$protobuf.util.ProtocolError} If required fields are missing
                          */
-                        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): biliproto.community.service.dm.v1.DanmakuElem;
+                        static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): biliproto.community.service.dm.v1.DanmakuElem & biliproto.community.service.dm.v1.DanmakuElem.$Shape;
 
                         /**
                          * Verifies a DanmakuElem message.
                          * @param message Plain object to verify
                          * @returns `null` if valid, otherwise the reason why it is not
                          */
-                        public static verify(message: { [k: string]: any }): (string|null);
+                        static verify(message: { [k: string]: any }): (string|null);
 
                         /**
                          * Creates a DanmakuElem message from a plain object. Also converts values to their respective internal types.
                          * @param object Plain object
                          * @returns DanmakuElem
                          */
-                        public static fromObject(object: { [k: string]: any }): biliproto.community.service.dm.v1.DanmakuElem;
+                        static fromObject(object: { [k: string]: any }): biliproto.community.service.dm.v1.DanmakuElem;
 
                         /**
                          * Creates a plain object from a DanmakuElem message. Also converts values to other types if specified.
@@ -192,53 +149,118 @@ export namespace biliproto {
                          * @param [options] Conversion options
                          * @returns Plain object
                          */
-                        public static toObject(message: biliproto.community.service.dm.v1.DanmakuElem, options?: $protobuf.IConversionOptions): { [k: string]: any };
+                        static toObject(message: biliproto.community.service.dm.v1.DanmakuElem, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
                         /**
                          * Converts this DanmakuElem to JSON.
                          * @returns JSON object
                          */
-                        public toJSON(): { [k: string]: any };
+                        toJSON(): { [k: string]: any };
 
                         /**
-                         * Gets the default type url for DanmakuElem
-                         * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-                         * @returns The default type url
+                         * Gets the type url for DanmakuElem
+                         * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+                         * @returns The type url
                          */
-                        public static getTypeUrl(typeUrlPrefix?: string): string;
+                        static getTypeUrl(prefix?: string): string;
                     }
 
-                    /** Properties of a Flag. */
-                    interface IFlag {
+                    namespace DanmakuElem {
 
-                        /** Flag value */
-                        value?: (number|null);
+                        /** Properties of a DanmakuElem. */
+                        interface $Properties {
 
-                        /** Flag description */
-                        description?: (string|null);
+                            /** DanmakuElem id */
+                            id?: (number|Long|null);
+
+                            /** DanmakuElem progress */
+                            progress?: (number|null);
+
+                            /** DanmakuElem mode */
+                            mode?: (number|null);
+
+                            /** DanmakuElem fontsize */
+                            fontsize?: (number|null);
+
+                            /** DanmakuElem color */
+                            color?: (number|null);
+
+                            /** DanmakuElem midHash */
+                            midHash?: (string|null);
+
+                            /** DanmakuElem content */
+                            content?: (string|null);
+
+                            /** DanmakuElem ctime */
+                            ctime?: (number|Long|null);
+
+                            /** DanmakuElem weight */
+                            weight?: (number|null);
+
+                            /** DanmakuElem action */
+                            action?: (string|null);
+
+                            /** DanmakuElem pool */
+                            pool?: (number|null);
+
+                            /** DanmakuElem idStr */
+                            idStr?: (string|null);
+
+                            /** DanmakuElem attr */
+                            attr?: (number|null);
+
+                            /** DanmakuElem animation */
+                            animation?: (string|null);
+
+                            /** DanmakuElem likeNum */
+                            likeNum?: (number|null);
+
+                            /** DanmakuElem colorV2 */
+                            colorV2?: (string|null);
+
+                            /** DanmakuElem dmTypeV2 */
+                            dmTypeV2?: (number|null);
+
+                            /** Unknown fields preserved while decoding */
+                            $unknowns?: Uint8Array[];
+                        }
+
+                        /** Shape of a DanmakuElem. */
+                        type $Shape = biliproto.community.service.dm.v1.DanmakuElem.$Properties;
+                    }
+
+                    /**
+                     * Properties of a Flag.
+                     * @deprecated Use biliproto.community.service.dm.v1.Flag.$Properties instead.
+                     */
+                    interface IFlag extends biliproto.community.service.dm.v1.Flag.$Properties {
                     }
 
                     /** Represents a Flag. */
-                    class Flag implements IFlag {
+                    class Flag {
 
                         /**
                          * Constructs a new Flag.
                          * @param [properties] Properties to set
                          */
-                        constructor(properties?: biliproto.community.service.dm.v1.IFlag);
+                        constructor(properties?: biliproto.community.service.dm.v1.Flag.$Properties);
+
+                        /** Unknown fields preserved while decoding */
+                        $unknowns?: Uint8Array[];
 
                         /** Flag value. */
-                        public value: number;
+                        value: number;
 
                         /** Flag description. */
-                        public description: string;
+                        description: string;
 
                         /**
                          * Creates a new Flag instance using the specified properties.
                          * @param [properties] Properties to set
                          * @returns Flag instance
                          */
-                        public static create(properties?: biliproto.community.service.dm.v1.IFlag): biliproto.community.service.dm.v1.Flag;
+                        static create(properties: biliproto.community.service.dm.v1.Flag.$Shape): biliproto.community.service.dm.v1.Flag & biliproto.community.service.dm.v1.Flag.$Shape;
+                        static create(properties?: biliproto.community.service.dm.v1.Flag.$Properties): biliproto.community.service.dm.v1.Flag;
 
                         /**
                          * Encodes the specified Flag message. Does not implicitly {@link biliproto.community.service.dm.v1.Flag.verify|verify} messages.
@@ -246,7 +268,7 @@ export namespace biliproto {
                          * @param [writer] Writer to encode to
                          * @returns Writer
                          */
-                        public static encode(message: biliproto.community.service.dm.v1.IFlag, writer?: $protobuf.Writer): $protobuf.Writer;
+                        static encode(message: biliproto.community.service.dm.v1.Flag.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
 
                         /**
                          * Encodes the specified Flag message, length delimited. Does not implicitly {@link biliproto.community.service.dm.v1.Flag.verify|verify} messages.
@@ -254,40 +276,40 @@ export namespace biliproto {
                          * @param [writer] Writer to encode to
                          * @returns Writer
                          */
-                        public static encodeDelimited(message: biliproto.community.service.dm.v1.IFlag, writer?: $protobuf.Writer): $protobuf.Writer;
+                        static encodeDelimited(message: biliproto.community.service.dm.v1.Flag.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
 
                         /**
                          * Decodes a Flag message from the specified reader or buffer.
                          * @param reader Reader or buffer to decode from
                          * @param [length] Message length if known beforehand
-                         * @returns Flag
+                         * @returns {biliproto.community.service.dm.v1.Flag & biliproto.community.service.dm.v1.Flag.$Shape} Flag
                          * @throws {Error} If the payload is not a reader or valid buffer
                          * @throws {$protobuf.util.ProtocolError} If required fields are missing
                          */
-                        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): biliproto.community.service.dm.v1.Flag;
+                        static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): biliproto.community.service.dm.v1.Flag & biliproto.community.service.dm.v1.Flag.$Shape;
 
                         /**
                          * Decodes a Flag message from the specified reader or buffer, length delimited.
                          * @param reader Reader or buffer to decode from
-                         * @returns Flag
+                         * @returns {biliproto.community.service.dm.v1.Flag & biliproto.community.service.dm.v1.Flag.$Shape} Flag
                          * @throws {Error} If the payload is not a reader or valid buffer
                          * @throws {$protobuf.util.ProtocolError} If required fields are missing
                          */
-                        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): biliproto.community.service.dm.v1.Flag;
+                        static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): biliproto.community.service.dm.v1.Flag & biliproto.community.service.dm.v1.Flag.$Shape;
 
                         /**
                          * Verifies a Flag message.
                          * @param message Plain object to verify
                          * @returns `null` if valid, otherwise the reason why it is not
                          */
-                        public static verify(message: { [k: string]: any }): (string|null);
+                        static verify(message: { [k: string]: any }): (string|null);
 
                         /**
                          * Creates a Flag message from a plain object. Also converts values to their respective internal types.
                          * @param object Plain object
                          * @returns Flag
                          */
-                        public static fromObject(object: { [k: string]: any }): biliproto.community.service.dm.v1.Flag;
+                        static fromObject(object: { [k: string]: any }): biliproto.community.service.dm.v1.Flag;
 
                         /**
                          * Creates a plain object from a Flag message. Also converts values to other types if specified.
@@ -295,59 +317,76 @@ export namespace biliproto {
                          * @param [options] Conversion options
                          * @returns Plain object
                          */
-                        public static toObject(message: biliproto.community.service.dm.v1.Flag, options?: $protobuf.IConversionOptions): { [k: string]: any };
+                        static toObject(message: biliproto.community.service.dm.v1.Flag, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
                         /**
                          * Converts this Flag to JSON.
                          * @returns JSON object
                          */
-                        public toJSON(): { [k: string]: any };
+                        toJSON(): { [k: string]: any };
 
                         /**
-                         * Gets the default type url for Flag
-                         * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-                         * @returns The default type url
+                         * Gets the type url for Flag
+                         * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+                         * @returns The type url
                          */
-                        public static getTypeUrl(typeUrlPrefix?: string): string;
+                        static getTypeUrl(prefix?: string): string;
                     }
 
-                    /** Properties of a DmSegMobileReply. */
-                    interface IDmSegMobileReply {
+                    namespace Flag {
 
-                        /** DmSegMobileReply elems */
-                        elems?: (biliproto.community.service.dm.v1.IDanmakuElem[]|null);
+                        /** Properties of a Flag. */
+                        interface $Properties {
 
-                        /** DmSegMobileReply state */
-                        state?: (number|null);
+                            /** Flag value */
+                            value?: (number|null);
 
-                        /** DmSegMobileReply aiFlagForSummary */
-                        aiFlagForSummary?: (biliproto.community.service.dm.v1.IFlag|null);
+                            /** Flag description */
+                            description?: (string|null);
+
+                            /** Unknown fields preserved while decoding */
+                            $unknowns?: Uint8Array[];
+                        }
+
+                        /** Shape of a Flag. */
+                        type $Shape = biliproto.community.service.dm.v1.Flag.$Properties;
+                    }
+
+                    /**
+                     * Properties of a DmSegMobileReply.
+                     * @deprecated Use biliproto.community.service.dm.v1.DmSegMobileReply.$Properties instead.
+                     */
+                    interface IDmSegMobileReply extends biliproto.community.service.dm.v1.DmSegMobileReply.$Properties {
                     }
 
                     /** Represents a DmSegMobileReply. */
-                    class DmSegMobileReply implements IDmSegMobileReply {
+                    class DmSegMobileReply {
 
                         /**
                          * Constructs a new DmSegMobileReply.
                          * @param [properties] Properties to set
                          */
-                        constructor(properties?: biliproto.community.service.dm.v1.IDmSegMobileReply);
+                        constructor(properties?: biliproto.community.service.dm.v1.DmSegMobileReply.$Properties);
+
+                        /** Unknown fields preserved while decoding */
+                        $unknowns?: Uint8Array[];
 
                         /** DmSegMobileReply elems. */
-                        public elems: biliproto.community.service.dm.v1.IDanmakuElem[];
+                        elems: biliproto.community.service.dm.v1.DanmakuElem.$Properties[];
 
                         /** DmSegMobileReply state. */
-                        public state: number;
+                        state: number;
 
                         /** DmSegMobileReply aiFlagForSummary. */
-                        public aiFlagForSummary?: (biliproto.community.service.dm.v1.IFlag|null);
+                        aiFlagForSummary?: (biliproto.community.service.dm.v1.Flag.$Properties|null);
 
                         /**
                          * Creates a new DmSegMobileReply instance using the specified properties.
                          * @param [properties] Properties to set
                          * @returns DmSegMobileReply instance
                          */
-                        public static create(properties?: biliproto.community.service.dm.v1.IDmSegMobileReply): biliproto.community.service.dm.v1.DmSegMobileReply;
+                        static create(properties: biliproto.community.service.dm.v1.DmSegMobileReply.$Shape): biliproto.community.service.dm.v1.DmSegMobileReply & biliproto.community.service.dm.v1.DmSegMobileReply.$Shape;
+                        static create(properties?: biliproto.community.service.dm.v1.DmSegMobileReply.$Properties): biliproto.community.service.dm.v1.DmSegMobileReply;
 
                         /**
                          * Encodes the specified DmSegMobileReply message. Does not implicitly {@link biliproto.community.service.dm.v1.DmSegMobileReply.verify|verify} messages.
@@ -355,7 +394,7 @@ export namespace biliproto {
                          * @param [writer] Writer to encode to
                          * @returns Writer
                          */
-                        public static encode(message: biliproto.community.service.dm.v1.IDmSegMobileReply, writer?: $protobuf.Writer): $protobuf.Writer;
+                        static encode(message: biliproto.community.service.dm.v1.DmSegMobileReply.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
 
                         /**
                          * Encodes the specified DmSegMobileReply message, length delimited. Does not implicitly {@link biliproto.community.service.dm.v1.DmSegMobileReply.verify|verify} messages.
@@ -363,40 +402,40 @@ export namespace biliproto {
                          * @param [writer] Writer to encode to
                          * @returns Writer
                          */
-                        public static encodeDelimited(message: biliproto.community.service.dm.v1.IDmSegMobileReply, writer?: $protobuf.Writer): $protobuf.Writer;
+                        static encodeDelimited(message: biliproto.community.service.dm.v1.DmSegMobileReply.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
 
                         /**
                          * Decodes a DmSegMobileReply message from the specified reader or buffer.
                          * @param reader Reader or buffer to decode from
                          * @param [length] Message length if known beforehand
-                         * @returns DmSegMobileReply
+                         * @returns {biliproto.community.service.dm.v1.DmSegMobileReply & biliproto.community.service.dm.v1.DmSegMobileReply.$Shape} DmSegMobileReply
                          * @throws {Error} If the payload is not a reader or valid buffer
                          * @throws {$protobuf.util.ProtocolError} If required fields are missing
                          */
-                        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): biliproto.community.service.dm.v1.DmSegMobileReply;
+                        static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): biliproto.community.service.dm.v1.DmSegMobileReply & biliproto.community.service.dm.v1.DmSegMobileReply.$Shape;
 
                         /**
                          * Decodes a DmSegMobileReply message from the specified reader or buffer, length delimited.
                          * @param reader Reader or buffer to decode from
-                         * @returns DmSegMobileReply
+                         * @returns {biliproto.community.service.dm.v1.DmSegMobileReply & biliproto.community.service.dm.v1.DmSegMobileReply.$Shape} DmSegMobileReply
                          * @throws {Error} If the payload is not a reader or valid buffer
                          * @throws {$protobuf.util.ProtocolError} If required fields are missing
                          */
-                        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): biliproto.community.service.dm.v1.DmSegMobileReply;
+                        static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): biliproto.community.service.dm.v1.DmSegMobileReply & biliproto.community.service.dm.v1.DmSegMobileReply.$Shape;
 
                         /**
                          * Verifies a DmSegMobileReply message.
                          * @param message Plain object to verify
                          * @returns `null` if valid, otherwise the reason why it is not
                          */
-                        public static verify(message: { [k: string]: any }): (string|null);
+                        static verify(message: { [k: string]: any }): (string|null);
 
                         /**
                          * Creates a DmSegMobileReply message from a plain object. Also converts values to their respective internal types.
                          * @param object Plain object
                          * @returns DmSegMobileReply
                          */
-                        public static fromObject(object: { [k: string]: any }): biliproto.community.service.dm.v1.DmSegMobileReply;
+                        static fromObject(object: { [k: string]: any }): biliproto.community.service.dm.v1.DmSegMobileReply;
 
                         /**
                          * Creates a plain object from a DmSegMobileReply message. Also converts values to other types if specified.
@@ -404,20 +443,42 @@ export namespace biliproto {
                          * @param [options] Conversion options
                          * @returns Plain object
                          */
-                        public static toObject(message: biliproto.community.service.dm.v1.DmSegMobileReply, options?: $protobuf.IConversionOptions): { [k: string]: any };
+                        static toObject(message: biliproto.community.service.dm.v1.DmSegMobileReply, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
                         /**
                          * Converts this DmSegMobileReply to JSON.
                          * @returns JSON object
                          */
-                        public toJSON(): { [k: string]: any };
+                        toJSON(): { [k: string]: any };
 
                         /**
-                         * Gets the default type url for DmSegMobileReply
-                         * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-                         * @returns The default type url
+                         * Gets the type url for DmSegMobileReply
+                         * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+                         * @returns The type url
                          */
-                        public static getTypeUrl(typeUrlPrefix?: string): string;
+                        static getTypeUrl(prefix?: string): string;
+                    }
+
+                    namespace DmSegMobileReply {
+
+                        /** Properties of a DmSegMobileReply. */
+                        interface $Properties {
+
+                            /** DmSegMobileReply elems */
+                            elems?: (biliproto.community.service.dm.v1.DanmakuElem.$Properties[]|null);
+
+                            /** DmSegMobileReply state */
+                            state?: (number|null);
+
+                            /** DmSegMobileReply aiFlagForSummary */
+                            aiFlagForSummary?: (biliproto.community.service.dm.v1.Flag.$Properties|null);
+
+                            /** Unknown fields preserved while decoding */
+                            $unknowns?: Uint8Array[];
+                        }
+
+                        /** Shape of a DmSegMobileReply. */
+                        type $Shape = biliproto.community.service.dm.v1.DmSegMobileReply.$Properties;
                     }
                 }
             }

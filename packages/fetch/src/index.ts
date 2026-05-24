@@ -1,13 +1,37 @@
-import { storage } from "@forward-widget/libs-storage";
 import { merge, omit } from "es-toolkit";
 import { stringify as qsStringify } from "querystringify";
 import { z } from "zod";
 
-type BaseRequestOptions = NonNullable<Parameters<typeof Widget.http.get>[1]>;
-export interface RequestOptions<T extends z.ZodType | undefined = undefined>
-  extends Omit<BaseRequestOptions, "params"> {
-  params?: Record<string, any>;
-  timeout?: number;
+export interface HttpAdapterRequestOptions {
+  headers?: Record<string, string>;
+  [key: string]: unknown;
+}
+
+export interface HttpResponse<T> {
+  data: T;
+  statusCode: number;
+  headers: Record<string, string>;
+}
+
+export interface FetchHttpAdapter {
+  get<T>(url: string, options?: HttpAdapterRequestOptions): Promise<HttpResponse<T>>;
+  post<T>(url: string, body: unknown, options?: HttpAdapterRequestOptions): Promise<HttpResponse<T>>;
+}
+
+export interface FetchStorageAdapter {
+  getJson<T = unknown>(key: string): Promise<T | null>;
+  setJson(key: string, value: unknown, options?: { ttl?: number }): unknown;
+}
+
+export interface FetchOptions {
+  adapter?: FetchHttpAdapter;
+  storageAdapter?: FetchStorageAdapter;
+  cookie?: Record<string, string>;
+  headers?: Record<string, string>;
+}
+
+export interface RequestOptions<T extends z.ZodType | undefined = undefined> extends HttpAdapterRequestOptions {
+  params?: Record<string, unknown>;
   cache?:
     | string
     | {
@@ -61,13 +85,40 @@ class HttpSchemaError extends Error {
   }
 }
 
-export type HttpResponse<T> = Awaited<ReturnType<typeof Widget.http.get<T>>>;
-
 export class Fetch {
-  constructor(
-    public cookie: Record<string, string> = {},
-    public headers: Record<string, string> = {},
-  ) {}
+  private static adapter?: FetchHttpAdapter;
+
+  private static storageAdapter?: FetchStorageAdapter;
+
+  public cookie: Record<string, string>;
+
+  public headers: Record<string, string>;
+
+  private adapter?: FetchHttpAdapter;
+
+  private storageAdapter?: FetchStorageAdapter;
+
+  constructor(options: FetchOptions = {}) {
+    this.cookie = options.cookie ?? {};
+    this.headers = options.headers ?? {};
+    this.adapter = options.adapter;
+    this.storageAdapter = options.storageAdapter;
+  }
+
+  static initializeAdapter(adapter: FetchHttpAdapter) {
+    Fetch.adapter = adapter;
+  }
+
+  static initializeStorageAdapter(adapter: FetchStorageAdapter) {
+    Fetch.storageAdapter = adapter;
+  }
+
+  private static getAdapter() {
+    if (!Fetch.adapter) {
+      throw new Error("@forward-widget/libs-fetch: fetch adapter has not been initialized");
+    }
+    return Fetch.adapter;
+  }
 
   /**
    * 设置或更新 Cookie，通过合并而非完全替换来避免数据丢失。
@@ -146,17 +197,6 @@ export class Fetch {
   }
 
   /**
-   * 创建一个在指定时间后 reject 的 Promise，用于实现超时控制
-   */
-  private createTimeoutPromise(timeoutMs: number): Promise<never> {
-    return new Promise((_, reject) => {
-      setTimeout(() => {
-        reject(new Error(`Request timeout after ${timeoutMs}ms`));
-      }, timeoutMs);
-    });
-  }
-
-  /**
    * 统一执行请求的核心逻辑
    */
   private async executeRequest<T>(
@@ -168,8 +208,9 @@ export class Fetch {
     const isGet = method === "GET";
     const requestOptions: RequestOptions = ((isGet ? bodyOrOptions : options) as RequestOptions) ?? {};
     const cacheConfig = this.getCacheConfig(requestOptions);
-    if (cacheConfig?.cacheKey) {
-      const cached = await storage.getJson<T>(cacheConfig.cacheKey);
+    const cacheStorage = this.storageAdapter ?? Fetch.storageAdapter;
+    if (cacheConfig?.cacheKey && cacheStorage) {
+      const cached = await cacheStorage.getJson<T>(cacheConfig.cacheKey);
       if (cached) {
         console.debug("♻️ fetch cache hit", cacheConfig.cacheKey);
         return {
@@ -183,7 +224,7 @@ export class Fetch {
 
     const body = isGet ? undefined : bodyOrOptions;
 
-    const { timeout, schema: _, params, ...restOptions } = requestOptions;
+    const { schema: _, params, ...restOptions } = requestOptions;
 
     let finalUrl = url;
     if (params) {
@@ -191,15 +232,8 @@ export class Fetch {
     }
 
     console.debug("⬆️ fetch", finalUrl, body ?? "", restOptions);
-    const requestPromise = isGet
-      ? Widget.http.get<T>(finalUrl, restOptions)
-      : Widget.http.post<T>(finalUrl, body, restOptions);
-
-    if (timeout && timeout > 0) {
-      return Promise.race([requestPromise, this.createTimeoutPromise(timeout)]);
-    }
-
-    return requestPromise;
+    const adapter = this.adapter ?? Fetch.getAdapter();
+    return isGet ? adapter.get<T>(finalUrl, restOptions) : adapter.post<T>(finalUrl, body, restOptions);
   }
 
   private handleResponse = <T>(
@@ -245,8 +279,9 @@ export class Fetch {
     }
 
     const cacheConfig = this.getCacheConfig(options);
-    if (cacheConfig?.cacheKey) {
-      storage.setJson(cacheConfig.cacheKey, response.data, { ttl: cacheConfig.ttl });
+    const cacheStorage = this.storageAdapter ?? Fetch.storageAdapter;
+    if (cacheConfig?.cacheKey && cacheStorage) {
+      cacheStorage.setJson(cacheConfig.cacheKey, response.data, { ttl: cacheConfig.ttl });
     }
     return response;
   };
@@ -262,4 +297,10 @@ export class Fetch {
   }
 }
 
-export const fetch = new Fetch();
+export function initializeFetchAdapter(adapter: FetchHttpAdapter) {
+  Fetch.initializeAdapter(adapter);
+}
+
+export function initializeFetchStorageAdapter(adapter: FetchStorageAdapter) {
+  Fetch.initializeStorageAdapter(adapter);
+}

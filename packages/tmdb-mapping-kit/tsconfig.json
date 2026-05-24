@@ -11,5 +11,5 @@
     "rootDir": "src"
   },
   "include": ["src"],
-  "references": [{ "path": "../scraper-kit" }]
+  "references": [{ "path": "../fetch" }, { "path": "../scraper-kit" }]
 }

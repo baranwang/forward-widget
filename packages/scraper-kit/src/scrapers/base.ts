@@ -1,5 +1,4 @@
 import { parse as parseQueryStringify, stringify as stringifyQueryStringify } from "querystringify";
-import { generateProviderIdString, isProviderName, parseProviderIdString } from "../provider-id";
 import { DEFAULT_COLOR_INT, Fetch, Logger, z } from "../runtime";
 import { getEpisodeBlacklistPattern } from "./blacklist";
 import type { GlobalParamsConfig } from "./config";
@@ -84,34 +83,34 @@ export abstract class BaseScraper<IDType extends z.ZodType = z.ZodType> {
 
   abstract idSchema: IDType;
 
+  public parseProviderIdString(idString: string): z.infer<IDType> {
+    const decodedIdString = parseQueryStringify(idString) as Record<string, unknown>;
+    const result = this.idSchema.safeParse(decodedIdString);
+    if (!result.success) {
+      throw new Error(`${this.providerName}: ${z.prettifyError(result.error)}`);
+    }
+    return result.data;
+  }
+
+  public generateIdString(id: z.input<IDType>): string {
+    const result = this.idSchema.safeParse(id);
+    if (!result.success) {
+      throw new Error(`${this.providerName}: ${z.prettifyError(result.error)}`);
+    }
+    return stringifyQueryStringify(result.data as object);
+  }
+
+  public async parseProviderUrl(_url: URL): Promise<z.input<IDType> | null> {
+    return null;
+  }
+
   protected parseIdString(idString: string): z.infer<IDType> | null {
-    let decodedIdString: Record<string, unknown>;
     try {
-      if (isProviderName(this.providerName)) {
-        decodedIdString = parseProviderIdString(this.providerName, idString) as Record<string, unknown>;
-      } else {
-        decodedIdString = parseQueryStringify(idString) as Record<string, unknown>;
-      }
+      return this.parseProviderIdString(idString);
     } catch (error) {
       this.logger.error("parseIdString", idString, error);
       return null;
     }
-    const result = this.idSchema?.safeParse(decodedIdString);
-    if (!result) {
-      this.logger.error("parseIdString", idString, "idSchema is not defined");
-      return null;
-    }
-    if (!result.success) {
-      this.logger.error("parseIdString", idString, z.prettifyError(result.error));
-      return null;
-    }
-    return result.data ?? null;
-  }
-  generateIdString(id: z.infer<IDType>) {
-    if (isProviderName(this.providerName)) {
-      return generateProviderIdString(this.providerName, id as never);
-    }
-    return stringifyQueryStringify(this.idSchema.parse(id) as object);
   }
 
   search?(params: SearchDanmuParams): Promise<ProviderDramaInfo[]>;

@@ -29,6 +29,16 @@ rs.mock("@opencode-ai/sdk/v2", () => ({
   createOpencode: rs.fn(),
 }));
 
+async function withMockedFetch<T>(fetchImpl: typeof fetch, fn: () => Promise<T>): Promise<T> {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = fetchImpl;
+  try {
+    return await fn();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
 describe("mapping agent CLI and provider config parsing", () => {
   test("requires issue, issue-body-file, and summary-file", () => {
     expect(parseCliArgs(["--issue", "42", "--issue-body-file", "./body.md", "--summary-file", "./summary.json"])).toBe(
@@ -290,41 +300,51 @@ describe("TMDB metadata fetch", () => {
   test("fetches movie title and year from TMDB metadata", async () => {
     const fetchImpl = async () => response({ title: "TMDB Movie", release_date: "2025-03-01" });
 
-    await expect(fetchTmdbMetadata(movieFields, { TMDB_ACCESS_TOKEN: "token" }, fetchImpl)).resolves.toEqual({
-      title: "TMDB Movie",
-      year: 2025,
+    await withMockedFetch(fetchImpl, async () => {
+      await expect(fetchTmdbMetadata(movieFields, { TMDB_ACCESS_TOKEN: "token" })).resolves.toEqual({
+        title: "TMDB Movie",
+        year: 2025,
+      });
     });
   });
 
   test("fetches TV title and year from TMDB metadata", async () => {
     const fetchImpl = async () => response({ name: "TMDB Show", first_air_date: "2024-11-09" });
 
-    await expect(fetchTmdbMetadata(tvFields, { TMDB_ACCESS_TOKEN: "token" }, fetchImpl)).resolves.toEqual({
-      title: "TMDB Show",
-      year: 2024,
+    await withMockedFetch(fetchImpl, async () => {
+      await expect(fetchTmdbMetadata(tvFields, { TMDB_ACCESS_TOKEN: "token" })).resolves.toEqual({
+        title: "TMDB Show",
+        year: 2024,
+      });
     });
   });
 
   test("requires a TMDB access token", async () => {
     const fetchImpl = async () => response({ title: "TMDB Movie" });
 
-    await expect(fetchTmdbMetadata(movieFields, {}, fetchImpl)).rejects.toThrow("TMDB_ACCESS_TOKEN is required");
+    await withMockedFetch(fetchImpl, async () => {
+      await expect(fetchTmdbMetadata(movieFields, {})).rejects.toThrow("TMDB_ACCESS_TOKEN is required");
+    });
   });
 
   test("fails on non-2xx TMDB metadata responses", async () => {
     const fetchImpl = async () => response({}, 503);
 
-    await expect(fetchTmdbMetadata(movieFields, { TMDB_ACCESS_TOKEN: "token" }, fetchImpl)).rejects.toThrow(
-      "TMDB metadata fetch failed with status 503",
-    );
+    await withMockedFetch(fetchImpl, async () => {
+      await expect(fetchTmdbMetadata(movieFields, { TMDB_ACCESS_TOKEN: "token" })).rejects.toThrow(
+        "TMDB metadata fetch failed with status 503",
+      );
+    });
   });
 
   test("fails when TMDB metadata omits a usable title", async () => {
     const fetchImpl = async () => response({ release_date: "2025-03-01" });
 
-    await expect(fetchTmdbMetadata(movieFields, { TMDB_ACCESS_TOKEN: "token" }, fetchImpl)).rejects.toThrow(
-      "TMDB metadata response did not include a title",
-    );
+    await withMockedFetch(fetchImpl, async () => {
+      await expect(fetchTmdbMetadata(movieFields, { TMDB_ACCESS_TOKEN: "token" })).rejects.toThrow(
+        "TMDB metadata response did not include a title",
+      );
+    });
   });
 });
 
@@ -527,18 +547,19 @@ https://example.com/watch/unknown-provider
       },
     } as unknown as Awaited<ReturnType<typeof createOpencode>>);
 
-    const summary = await runMappingAgent({
-      issueNumber: 42,
-      issueBody,
-      repoRoot,
-      summaryPath,
-      env: {
-        OPENCODE_MODEL: "custom/model-a",
-        OPENCODE_API_KEY: "test-api-key",
-        TMDB_ACCESS_TOKEN: "tmdb-token",
-      },
-      fetchImpl,
-    });
+    const summary = await withMockedFetch(fetchImpl, () =>
+      runMappingAgent({
+        issueNumber: 42,
+        issueBody,
+        repoRoot,
+        summaryPath,
+        env: {
+          OPENCODE_MODEL: "custom/model-a",
+          OPENCODE_API_KEY: "test-api-key",
+          TMDB_ACCESS_TOKEN: "tmdb-token",
+        },
+      }),
+    );
 
     expect(summary).toEqual({
       status: "success",
@@ -600,16 +621,17 @@ https://www.bilibili.com/bangumi/play/ep3409878
     const mockedCreateOpencode = rs.mocked(createOpencode);
     mockedCreateOpencode.mockReset();
 
-    const summary = await runMappingAgent({
-      issueNumber: 2,
-      issueBody,
-      repoRoot,
-      summaryPath,
-      env: {
-        TMDB_ACCESS_TOKEN: "tmdb-token",
-      },
-      fetchImpl,
-    });
+    const summary = await withMockedFetch(fetchImpl, () =>
+      runMappingAgent({
+        issueNumber: 2,
+        issueBody,
+        repoRoot,
+        summaryPath,
+        env: {
+          TMDB_ACCESS_TOKEN: "tmdb-token",
+        },
+      }),
+    );
 
     expect(summary).toMatchObject({
       status: "success",
@@ -669,16 +691,17 @@ https://www.bilibili.com/bangumi/play/ss45962
     const mockedCreateOpencode = rs.mocked(createOpencode);
     mockedCreateOpencode.mockReset();
 
-    const summary = await runMappingAgent({
-      issueNumber: 7,
-      issueBody,
-      repoRoot,
-      summaryPath,
-      env: {
-        TMDB_ACCESS_TOKEN: "tmdb-token",
-      },
-      fetchImpl,
-    });
+    const summary = await withMockedFetch(fetchImpl, () =>
+      runMappingAgent({
+        issueNumber: 7,
+        issueBody,
+        repoRoot,
+        summaryPath,
+        env: {
+          TMDB_ACCESS_TOKEN: "tmdb-token",
+        },
+      }),
+    );
 
     expect(summary).toMatchObject({
       status: "success",
@@ -738,16 +761,17 @@ https://www.mgtv.com/h/860862.html
     const mockedCreateOpencode = rs.mocked(createOpencode);
     mockedCreateOpencode.mockReset();
 
-    const summary = await runMappingAgent({
-      issueNumber: 6,
-      issueBody,
-      repoRoot,
-      summaryPath,
-      env: {
-        TMDB_ACCESS_TOKEN: "tmdb-token",
-      },
-      fetchImpl,
-    });
+    const summary = await withMockedFetch(fetchImpl, () =>
+      runMappingAgent({
+        issueNumber: 6,
+        issueBody,
+        repoRoot,
+        summaryPath,
+        env: {
+          TMDB_ACCESS_TOKEN: "tmdb-token",
+        },
+      }),
+    );
 
     expect(summary).toMatchObject({
       status: "success",

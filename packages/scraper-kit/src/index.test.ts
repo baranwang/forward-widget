@@ -1,7 +1,7 @@
 import { describe, expect, test } from "@rstest/core";
 import * as scraperKit from "./index";
 
-const expectedProviderKeys = ["tencent", "youku", "iqiyi", "bilibili", "renren", "mgtv"];
+const expectedProviderKeys = ["tencent", "youku", "iqiyi", "bilibili", "mgtv", "renren"];
 
 describe("public API exports", () => {
   test("exports migrated registry and deterministic helpers", () => {

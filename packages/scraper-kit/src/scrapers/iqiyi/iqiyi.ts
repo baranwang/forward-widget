@@ -18,6 +18,19 @@ export class IqiyiScraper extends BaseScraper<typeof iqiyiIdSchema> {
 
   idSchema = iqiyiIdSchema;
 
+  async parseProviderUrl(url: URL) {
+    if (!url.hostname.includes("iqiyi.com")) {
+      return null;
+    }
+
+    const entityId = url.searchParams.get("entityId") ?? url.searchParams.get("tvid") ?? undefined;
+    if (!entityId) {
+      return null;
+    }
+
+    return { entityId };
+  }
+
   protected PROVIDER_SPECIFIC_BLACKLIST =
     "^(.*?)(抢先(版|篇)?|加更(版|篇)?|花絮|预告|特辑|彩蛋|专访|幕后(故事|花絮)?|直播|纯享|未播|衍生|番外|会员(专属|加长)?|片花|精华|看点|速览|解读|reaction|影评)(.*?)$";
 

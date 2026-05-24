@@ -1,3 +1,4 @@
+import { providerNames } from "@forward-widget/scraper-kit/provider-metadata";
 import { describe, expect, test } from "@rstest/core";
 import type { LocalMapEntry, LocalMapProvider } from "./local-map";
 
@@ -52,7 +53,7 @@ describe("LocalMap types", () => {
   });
 
   test("should validate provider enum", () => {
-    const providers: LocalMapProvider["provider"][] = ["tencent", "youku", "iqiyi", "bilibili", "mgtv", "renren"];
+    const providers: LocalMapProvider["provider"][] = [...providerNames];
 
     expect(providers).toHaveLength(6);
   });

@@ -7,6 +7,21 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./provider-url": {
+      "types": "./dist/provider-url.d.ts",
+      "development": "./src/provider-url.ts",
+      "import": "./dist/provider-url.js"
+    },
+    "./provider-metadata": {
+      "types": "./dist/provider-metadata.d.ts",
+      "development": "./src/provider-metadata.ts",
+      "import": "./dist/provider-metadata.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "development": "./src/runtime/index.ts",
+      "import": "./dist/runtime/index.js"
     }
   },
   "types": "./dist/index.d.ts",
@@ -25,7 +40,7 @@
     "date-fns": "^4.1.0",
     "es-toolkit": "^1.39.9",
     "fast-xml-parser": "^5.2.5",
-    "protobufjs": "^7.5.4",
+    "protobufjs": "^8.4.2",
     "querystringify": "^2.2.0",
     "url-parse": "^1.5.10",
     "zod": "4.0.17"
@@ -38,7 +53,7 @@
     "@types/node": "^24.10.1",
     "@types/querystringify": "^2.0.2",
     "@types/url-parse": "^1.4.11",
-    "rsbuild-plugin-protobufjs": "^0.0.0",
+    "rsbuild-plugin-protobufjs": "^0.1.0",
     "typescript": "^5.9.3"
   }
 }

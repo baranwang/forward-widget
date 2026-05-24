@@ -88,7 +88,7 @@ export class QihooMatcher {
       }
 
       if (item.playlinks.qq) {
-        const qqParsed = parseProviderUrl(item.playlinks.qq);
+        const qqParsed = await parseProviderUrl(item.playlinks.qq);
         if (qqParsed?.provider === "tencent") {
           results.push({
             provider: "tencent",
@@ -108,7 +108,7 @@ export class QihooMatcher {
       }
 
       if (item.playlinks.youku) {
-        const youkuParsed = parseProviderUrl(item.playlinks.youku);
+        const youkuParsed = await parseProviderUrl(item.playlinks.youku);
         if (youkuParsed?.provider === "youku") {
           results.push({
             provider: "youku",
@@ -154,7 +154,7 @@ export class QihooMatcher {
       }
 
       if (item.playlinks.imgo) {
-        const mgtvParsed = parseProviderUrl(item.playlinks.imgo);
+        const mgtvParsed = await parseProviderUrl(item.playlinks.imgo);
         if (mgtvParsed?.provider === "mgtv") {
           results.push({
             provider: "mgtv",

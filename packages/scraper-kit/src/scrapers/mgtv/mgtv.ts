@@ -16,6 +16,27 @@ export class MgTVScraper extends BaseScraper<typeof mgtvIdSchema> {
 
   idSchema = mgtvIdSchema;
 
+  async parseProviderUrl(url: URL) {
+    if (url.hostname !== "www.mgtv.com" && url.hostname !== "mgtv.com") {
+      return null;
+    }
+
+    const hMatch = url.pathname.match(/^\/h\/([^/.]+)\.html$/);
+    if (hMatch) {
+      return { dramaId: hMatch[1] };
+    }
+
+    const bMatch = url.pathname.match(/^\/b\/([^/]+)\/([^/.]+)\.html$/);
+    if (bMatch) {
+      return {
+        dramaId: bMatch[1],
+        videoId: bMatch[2],
+      };
+    }
+
+    return null;
+  }
+
   constructor() {
     super();
     this.fetch.setHeaders({

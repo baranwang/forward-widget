@@ -1,3 +1,4 @@
+import "./libs/fetch";
 import { DoubanHistory } from "./experimental/douban-history";
 import { EMPTY_ANIME_CONFIG, type MediaType, PROVIDER_NAMES } from "./libs/constants";
 import { z } from "./libs/zod";

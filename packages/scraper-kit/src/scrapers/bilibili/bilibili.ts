@@ -8,7 +8,23 @@ export class BilibiliScraper extends BaseScraper<typeof bilibiliIdSchema> {
 
   idSchema = bilibiliIdSchema;
 
-  private readonly DmSegMobileReply = biliproto.community.service.dm.v1.DmSegMobileReply;
+  async parseProviderUrl(url: URL) {
+    if (url.hostname !== "www.bilibili.com" && url.hostname !== "bilibili.com") {
+      return null;
+    }
+
+    const ssMatch = url.pathname.match(/^\/bangumi\/play\/ss(\d+)$/);
+    if (ssMatch) {
+      return { seasonId: ssMatch[1] };
+    }
+
+    const epMatch = url.pathname.match(/^\/bangumi\/play\/ep(\d+)\/?$/);
+    if (epMatch) {
+      return this.getPgcSeasonId(epMatch[1]);
+    }
+
+    return null;
+  }
 
   constructor() {
     super();
@@ -126,6 +142,25 @@ export class BilibiliScraper extends BaseScraper<typeof bilibiliIdSchema> {
     return response.data?.result.episodes;
   }
 
+  private async getPgcSeasonId(episodeId: string) {
+    const response = await this.fetch.get<{ result?: { season_id?: number | string } }>(
+      "https://api.bilibili.com/pgc/view/web/season",
+      {
+        params: {
+          ep_id: episodeId,
+        },
+        cache: {
+          cacheKey: `bilibili:season:${episodeId}`,
+        },
+      },
+    );
+    const seasonId = response.data?.result?.season_id;
+    if (seasonId === undefined || seasonId === null || seasonId === "") {
+      return null;
+    }
+    return { seasonId: seasonId.toString() };
+  }
+
   private async fetchCommentsForCid(aid: string, cid: string, segmentIndex: string) {
     try {
       const response = await this.fetch.get<string>("https://api.bilibili.com/x/v2/dm/web/seg.so", {
@@ -138,7 +173,7 @@ export class BilibiliScraper extends BaseScraper<typeof bilibiliIdSchema> {
         base64Data: true,
       });
       if (response.statusCode === 404 || response.statusCode === 304) return null;
-      const data = this.DmSegMobileReply.decode(base64ToUint8Array(response.data));
+      const data = biliproto.community.service.dm.v1.DmSegMobileReply.decode(base64ToUint8Array(response.data));
       return data.elems;
     } catch (error) {
       this.logger.error("获取分段", segmentIndex, "失败，aid：", aid, "cid：", cid, "错误：", error);

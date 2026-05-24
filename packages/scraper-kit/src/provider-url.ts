@@ -1,5 +1,6 @@
-import type { ProviderId, ProviderName } from "./provider-id";
-import { generateProviderIdString } from "./provider-id";
+import type { ProviderId } from "./provider-id";
+import { isProviderName, type ProviderName, providerNames } from "./provider-metadata";
+import { Fetch } from "./runtime";
 
 export type ParsedProviderUrl = {
   provider: ProviderName;
@@ -14,130 +15,151 @@ type ParsedProviderUrlFor<P extends ProviderName> = {
   url: string;
 };
 
-function parseTencentUrl(url: URL): ProviderId["tencent"] | null {
-  if (url.hostname !== "v.qq.com") {
-    return null;
-  }
+type ParserResult<P extends ProviderName> = Partial<ProviderId[P]> | null;
 
-  const withVidMatch = url.pathname.match(/^\/x\/cover\/([^/]+)\/([^/.]+)\.html$/);
-  if (withVidMatch) {
-    return {
-      cid: withVidMatch[1],
-      vid: withVidMatch[2],
-    };
-  }
+type ProviderUrlParsers = {
+  [P in ProviderName]: (url: URL) => Promise<ParserResult<P>> | ParserResult<P>;
+};
 
-  const cidOnlyMatch = url.pathname.match(/^\/x\/cover\/([^/.]+)\.html$/);
-  if (cidOnlyMatch) {
-    return { cid: cidOnlyMatch[1] };
-  }
+type BilibiliSeasonResponse = {
+  result?: {
+    season_id?: number | string;
+  };
+};
 
-  const cid = url.searchParams.get("cid") ?? undefined;
-  const vid = url.searchParams.get("vid") ?? undefined;
-  if (cid) {
-    return { cid, vid: vid || undefined };
-  }
-
-  return null;
+function formatProviderIdString(id: Record<string, unknown>, keys: string[]) {
+  return keys
+    .flatMap((key) => {
+      const value = id[key];
+      return value === undefined || value === null || value === "" ? [] : `${key}=${value}`;
+    })
+    .join("&");
 }
 
-function parseYoukuUrl(url: URL): ProviderId["youku"] | null {
-  if (!url.hostname.includes("youku.com")) {
-    return null;
+function generateParsedIdString<P extends ProviderName>(provider: P, id: ProviderId[P]) {
+  const idRecord = id as Record<string, unknown>;
+  switch (provider) {
+    case "tencent":
+      return formatProviderIdString(idRecord, ["cid", "vid"]);
+    case "youku":
+      return formatProviderIdString(idRecord, ["showId", "vid"]);
+    case "iqiyi":
+      return formatProviderIdString(idRecord, ["entityId"]);
+    case "bilibili":
+      return formatProviderIdString(idRecord, ["seasonId", "aid", "cid"]);
+    case "mgtv":
+      return formatProviderIdString(idRecord, ["dramaId", "videoId"]);
+    case "renren":
+      return formatProviderIdString(idRecord, ["dramaId", "episodeId"]);
   }
-
-  const showId = url.searchParams.get("showid") ?? undefined;
-  const vid = url.searchParams.get("vid") ?? undefined;
-  if (!showId && !vid) {
-    return null;
-  }
-
-  return { showId, vid };
 }
 
-function parseIqiyiUrl(url: URL): ProviderId["iqiyi"] | null {
-  if (!url.hostname.includes("iqiyi.com")) {
+async function getBilibiliSeasonId(episodeId: string) {
+  const fetch = new Fetch({ headers: { Referer: "https://www.bilibili.com/" } });
+  const response = await fetch.get<BilibiliSeasonResponse>("https://api.bilibili.com/pgc/view/web/season", {
+    params: {
+      ep_id: episodeId,
+    },
+    cache: {
+      cacheKey: `bilibili:season:${episodeId}`,
+    },
+  });
+  const seasonId = response.data?.result?.season_id;
+  if (seasonId === undefined || seasonId === null || seasonId === "") {
     return null;
   }
-
-  const entityId = url.searchParams.get("entityId") ?? url.searchParams.get("tvid") ?? undefined;
-  if (!entityId) {
-    return null;
-  }
-
-  return { entityId };
+  return { seasonId: seasonId.toString() };
 }
 
-function parseBilibiliUrl(url: URL): ProviderId["bilibili"] | null {
-  if (url.hostname !== "www.bilibili.com" && url.hostname !== "bilibili.com") {
+const providerUrlParsers: ProviderUrlParsers = {
+  async bilibili(url) {
+    if (url.hostname !== "www.bilibili.com" && url.hostname !== "bilibili.com") {
+      return null;
+    }
+
+    const ssMatch = url.pathname.match(/^\/bangumi\/play\/ss(\d+)$/);
+    if (ssMatch) {
+      return { seasonId: ssMatch[1] };
+    }
+
+    const epMatch = url.pathname.match(/^\/bangumi\/play\/ep(\d+)\/?$/);
+    if (epMatch) {
+      return getBilibiliSeasonId(epMatch[1]);
+    }
+
     return null;
-  }
+  },
+  iqiyi(url) {
+    if (!url.hostname.includes("iqiyi.com")) {
+      return null;
+    }
 
-  const ssMatch = url.pathname.match(/^\/bangumi\/play\/ss(\d+)$/);
-  if (ssMatch) {
-    return { seasonId: ssMatch[1] };
-  }
+    const entityId = url.searchParams.get("entityId") ?? url.searchParams.get("tvid") ?? undefined;
+    return entityId ? { entityId } : null;
+  },
+  mgtv(url) {
+    if (url.hostname !== "www.mgtv.com" && url.hostname !== "mgtv.com") {
+      return null;
+    }
 
-  return null;
-}
+    const hMatch = url.pathname.match(/^\/h\/([^/.]+)\.html$/);
+    if (hMatch) {
+      return { dramaId: hMatch[1] };
+    }
 
-function parseMgtvUrl(url: URL): ProviderId["mgtv"] | null {
-  if (url.hostname !== "www.mgtv.com" && url.hostname !== "mgtv.com") {
+    const bMatch = url.pathname.match(/^\/b\/([^/]+)\/([^/.]+)\.html$/);
+    if (bMatch) {
+      return {
+        dramaId: bMatch[1],
+        videoId: bMatch[2],
+      };
+    }
+
     return null;
-  }
-
-  const hMatch = url.pathname.match(/^\/h\/([^/.]+)\.html$/);
-  if (hMatch) {
-    return { dramaId: hMatch[1] };
-  }
-
-  const bMatch = url.pathname.match(/^\/b\/([^/]+)\/([^/.]+)\.html$/);
-  if (bMatch) {
-    return {
-      dramaId: bMatch[1],
-      videoId: bMatch[2],
-    };
-  }
-
-  return null;
-}
-
-function parseProviderIdFromUrl(provider: ProviderName, url: URL): ProviderId[ProviderName] | null {
-  if (provider === "tencent") {
-    return parseTencentUrl(url);
-  }
-  if (provider === "youku") {
-    return parseYoukuUrl(url);
-  }
-  if (provider === "iqiyi") {
-    return parseIqiyiUrl(url);
-  }
-  if (provider === "bilibili") {
-    return parseBilibiliUrl(url);
-  }
-  if (provider === "mgtv") {
-    return parseMgtvUrl(url);
-  }
-  return null;
-}
-
-export function parseProviderUrl(url: string): ParsedProviderUrl | null {
-  let parsedUrl: URL;
-  try {
-    parsedUrl = new URL(url);
-  } catch {
+  },
+  renren() {
     return null;
-  }
+  },
+  tencent(url) {
+    if (url.hostname !== "v.qq.com") {
+      return null;
+    }
 
-  const providers: ProviderName[] = ["tencent", "youku", "iqiyi", "bilibili", "mgtv", "renren"];
-  for (const provider of providers) {
-    const id = parseProviderIdFromUrl(provider, parsedUrl);
-    if (id) {
+    const withVidMatch = url.pathname.match(/^\/x\/cover\/([^/]+)\/([^/.]+)\.html$/);
+    if (withVidMatch) {
+      return {
+        cid: withVidMatch[1],
+        vid: withVidMatch[2],
+      };
+    }
+
+    const cidOnlyMatch = url.pathname.match(/^\/x\/cover\/([^/.]+)\.html$/);
+    if (cidOnlyMatch) {
+      return { cid: cidOnlyMatch[1] };
+    }
+
+    const cid = url.searchParams.get("cid") ?? undefined;
+    const vid = url.searchParams.get("vid") ?? undefined;
+    return cid ? { cid, vid: vid || undefined } : null;
+  },
+  youku(url) {
+    if (!url.hostname.includes("youku.com")) {
+      return null;
+    }
+
+    const showId = url.searchParams.get("showid") ?? undefined;
+    const vid = url.searchParams.get("vid") ?? undefined;
+    return showId || vid ? { showId, vid } : null;
+  },
+};
+
+export async function parseProviderUrl(url: string): Promise<ParsedProviderUrl | null> {
+  for (const provider of providerNames) {
+    const parsed = await parseProviderUrlFor(provider, url);
+    if (parsed) {
       return {
         provider,
-        id,
-        idString: generateProviderIdString(provider, id as never),
-        url,
+        ...parsed,
       };
     }
   }
@@ -145,15 +167,31 @@ export function parseProviderUrl(url: string): ParsedProviderUrl | null {
   return null;
 }
 
-export function parseProviderUrlFor<P extends ProviderName>(provider: P, url: string): ParsedProviderUrlFor<P> | null {
-  const parsed = parseProviderUrl(url);
-  if (!parsed || parsed.provider !== provider) {
+export async function parseProviderUrlFor<P extends ProviderName>(
+  provider: P,
+  url: string,
+): Promise<ParsedProviderUrlFor<P> | null> {
+  if (!isProviderName(provider)) {
     return null;
   }
 
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    return null;
+  }
+
+  const parser = providerUrlParsers[provider];
+  const id = await parser(parsedUrl);
+  if (!id) {
+    return null;
+  }
+  const parsedId = id as ProviderId[P];
+
   return {
-    id: parsed.id as ProviderId[P],
-    idString: parsed.idString,
-    url: parsed.url,
+    id: parsedId,
+    idString: generateParsedIdString(provider, parsedId),
+    url,
   };
 }

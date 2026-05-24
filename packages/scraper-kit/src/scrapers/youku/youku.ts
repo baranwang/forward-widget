@@ -12,6 +12,20 @@ export class YoukuScraper extends BaseScraper<typeof youkuIdSchema> {
 
   idSchema = youkuIdSchema;
 
+  async parseProviderUrl(url: URL) {
+    if (!url.hostname.includes("youku.com")) {
+      return null;
+    }
+
+    const showId = url.searchParams.get("showid") ?? undefined;
+    const vid = url.searchParams.get("vid") ?? undefined;
+    if (!showId && !vid) {
+      return null;
+    }
+
+    return { showId, vid };
+  }
+
   private readonly EPISODE_BLACKLIST_KEYWORDS = ["彩蛋", "加更", "走心", "解忧", "纯享"];
 
   constructor() {

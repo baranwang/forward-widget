@@ -1,4 +1,4 @@
-import { qs } from "url-parse";
+import parseUrl from "url-parse";
 import { TTL_2_HOURS } from "../../runtime";
 import { BaseScraper, type ProviderEpisodeInfo } from "../base";
 import {
@@ -10,11 +10,39 @@ import {
 } from "./schema";
 
 const pageSize = 30;
+const { qs } = parseUrl;
 
 export class TencentScraper extends BaseScraper<typeof tencentIdSchema> {
   providerName = "tencent";
 
   idSchema = tencentIdSchema;
+
+  async parseProviderUrl(url: URL) {
+    if (url.hostname !== "v.qq.com") {
+      return null;
+    }
+
+    const withVidMatch = url.pathname.match(/^\/x\/cover\/([^/]+)\/([^/.]+)\.html$/);
+    if (withVidMatch) {
+      return {
+        cid: withVidMatch[1],
+        vid: withVidMatch[2],
+      };
+    }
+
+    const cidOnlyMatch = url.pathname.match(/^\/x\/cover\/([^/.]+)\.html$/);
+    if (cidOnlyMatch) {
+      return { cid: cidOnlyMatch[1] };
+    }
+
+    const cid = url.searchParams.get("cid") ?? undefined;
+    const vid = url.searchParams.get("vid") ?? undefined;
+    if (cid) {
+      return { cid, vid: vid || undefined };
+    }
+
+    return null;
+  }
 
   constructor() {
     super();

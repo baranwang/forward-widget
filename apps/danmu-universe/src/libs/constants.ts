@@ -1,3 +1,4 @@
+import { providerDisplayNames } from "@forward-widget/scraper-kit/provider-metadata";
 import { z } from "./zod";
 
 export enum MediaType {
@@ -8,14 +9,7 @@ export enum MediaType {
 export const DEFAULT_COLOR_HEX = "ffffff";
 export const DEFAULT_COLOR_INT = parseInt(DEFAULT_COLOR_HEX, 16);
 
-export const PROVIDER_NAMES = {
-  tencent: "腾讯视频",
-  iqiyi: "爱奇艺",
-  youku: "优酷视频",
-  bilibili: "哔哩哔哩",
-  renren: "人人视频",
-  mgtv: "芒果 TV",
-};
+export const PROVIDER_NAMES = providerDisplayNames;
 
 export const searchDanmuParamsSchema = z.object({
   tmdbId: z.coerce.string().optional(),

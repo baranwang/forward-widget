@@ -170,7 +170,7 @@ export class DoubanMatcher {
       if (!vendor) {
         continue;
       }
-      const parsed = parseProviderUrl(vendor.uri);
+      const parsed = await parseProviderUrl(vendor.uri);
       const uriObj = parseUrl(vendor.uri, true);
       switch (vendor.id) {
         case "qq": {

@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
+import { type ProviderName, providerNames } from "@forward-widget/scraper-kit/provider-metadata";
 
 type Provider = {
-  provider: "tencent" | "youku" | "iqiyi" | "bilibili" | "mgtv" | "renren";
+  provider: ProviderName;
   idString: string;
   episodeNumber?: number;
 };
@@ -19,7 +20,7 @@ type Entry = {
   providers: Provider[];
 };
 
-const providers = new Set(["tencent", "youku", "iqiyi", "bilibili", "mgtv", "renren"]);
+const providerNameSet = new Set<string>(providerNames);
 
 function fail(message: string): never {
   throw new Error(message);
@@ -59,7 +60,7 @@ function normalizeProvider(value: unknown, lineNumber: number): Provider {
     fail(`line ${lineNumber}: provider item must be an object`);
   }
   const provider = requireString(value, "provider", lineNumber);
-  if (!providers.has(provider)) {
+  if (!providerNameSet.has(provider)) {
     fail(`line ${lineNumber}: unsupported provider ${provider}`);
   }
   const idString = requireString(value, "idString", lineNumber);

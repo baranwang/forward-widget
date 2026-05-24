@@ -8,9 +8,18 @@ import { DEFAULT_COLOR_INT, MediaType, safeJsonParseWithZod, z } from "../../run
 import { providerCommentItemSchema } from "../base";
 import { getEpisodeBlacklistPattern } from "../blacklist";
 
+const requiredNumber = z.union([z.number(), z.string().trim().min(1)]).pipe(z.coerce.number());
+const optionalNumber = z.preprocess(
+  (value) => (value === "" || value === null || value === undefined ? undefined : value),
+  z
+    .union([z.number(), z.string().trim().min(1)])
+    .pipe(z.coerce.number())
+    .optional(),
+);
+
 export const renrenIdSchema = z.object({
-  dramaId: z.coerce.number(),
-  episodeId: z.coerce.number().optional(),
+  dramaId: requiredNumber,
+  episodeId: optionalNumber,
 });
 
 export type RenRenId = z.infer<typeof renrenIdSchema>;

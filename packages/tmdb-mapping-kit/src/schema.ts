@@ -1,6 +1,7 @@
+import { providerNames } from "@forward-widget/scraper-kit/provider-metadata";
 import { z } from "zod";
 
-const providerEnumSchema = z.enum(["tencent", "youku", "iqiyi", "bilibili", "mgtv", "renren"]);
+const providerEnumSchema = z.enum(providerNames);
 
 export const canonicalProviderSchema = z.object({
   provider: providerEnumSchema,

@@ -17,7 +17,6 @@
     "dev": "rslib build --watch"
   },
   "dependencies": {
-    "@forward-widget/libs-storage": "workspace:^",
     "es-toolkit": "^1.39.9",
     "querystringify": "^2.2.0",
     "zod": "4.0.17"

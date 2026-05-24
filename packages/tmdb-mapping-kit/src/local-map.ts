@@ -1,5 +1,7 @@
+import type { ProviderName } from "@forward-widget/scraper-kit/provider-metadata";
+
 export interface LocalMapProvider {
-  provider: "tencent" | "youku" | "iqiyi" | "bilibili" | "mgtv" | "renren";
+  provider: ProviderName;
   idString: string;
   episodeNumber?: number;
 }

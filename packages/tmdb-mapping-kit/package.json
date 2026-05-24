@@ -29,11 +29,11 @@
     "@rslib/core": "^0.21.5",
     "@rstest/adapter-rslib": "^0.2.2",
     "@rstest/core": "^0.9.10",
+    "@forward-widget/scraper-kit": "workspace:^",
     "@types/node": "^24.12.4",
     "typescript": "^6.0.3"
   },
   "dependencies": {
-    "@forward-widget/scraper-kit": "workspace:^",
     "@opencode-ai/sdk": "^1.15.3",
     "zod": "4.0.17"
   }
