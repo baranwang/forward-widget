@@ -1,0 +1,3 @@
+- Use `z.toJSONSchema(issueFormFieldsSchema)` as the structured-output contract for IssueFormFields and keep parsing schema-only.
+- Keep deterministic provider resolution after extraction and only fall back to the second OpenCode candidate prompt when provider URLs cannot be resolved locally.
+- Let runtime persist canonical mappings by trusting candidate semantic fields and stripping provider URLs, rather than revalidating agent output.

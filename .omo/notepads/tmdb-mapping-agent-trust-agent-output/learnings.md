@@ -1,0 +1,5 @@
+- Issue field extraction now has a dedicated Zod source of truth and JSON schema for OpenCode structured output.
+- The issue-field prompt should preserve the exact raw issue body and guide the agent by meaning, not exact headings.
+- `runMappingAgent()` now extracts issue fields through the first OpenCode session before metadata lookup, so tests need OpenCode env even for deterministic provider paths.
+- Final runtime canonicalization now trusts the candidate semantic payload and only strips transient provider URLs before persistence.
+- `issueFormFieldsSchema` must reject empty `platform_urls` arrays so deterministic provider resolution cannot persist a providerless canonical mapping.

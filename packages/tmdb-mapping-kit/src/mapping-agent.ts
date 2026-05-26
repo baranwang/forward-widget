@@ -9,14 +9,6 @@ import { z } from "zod";
 import type { CanonicalMapping, MappingCandidate, MappingCandidateProvider } from "./schema.ts";
 import { mappingCandidateSchema } from "./schema.ts";
 
-const issueFieldDefinitions = [
-  { id: "media_title", label: "媒体标题", required: false },
-  { id: "tmdb_url", label: "TMDB 链接", required: true },
-  { id: "season", label: "季号（可选）", required: false },
-  { id: "platform_urls", label: "视频平台链接", required: true },
-  { id: "notes", label: "备注（可选）", required: false },
-] as const;
-
 export const modelResponseSchema = z.discriminatedUnion("status", [
   z.object({
     status: z.literal("confident"),
@@ -36,6 +28,17 @@ export const modelResponseOutputSchema = z.object({
 });
 
 export const mappingAgentOutputJsonSchema = z.toJSONSchema(modelResponseOutputSchema);
+
+export const issueFormFieldsSchema = z.object({
+  media_title: z.string().optional(),
+  media_type: z.enum(["movie", "tv"]),
+  tmdb_url: z.string(),
+  season: z.number().int().nullable().optional(),
+  platform_urls: z.array(z.string()).min(1),
+  notes: z.string().optional(),
+});
+
+export const issueFormFieldsOutputJsonSchema = z.toJSONSchema(issueFormFieldsSchema);
 
 export type IssueFormFields = {
   media_title?: string;
@@ -124,43 +127,6 @@ function requiredEnv(env: NodeJS.ProcessEnv, name: string): string {
   return value;
 }
 
-function trimNoResponse(value: string): string {
-  const trimmed = value.trim();
-  return trimmed.toLowerCase() === "_no response_" ? "" : trimmed;
-}
-
-export function parseIssueFormBody(body: string): Record<(typeof issueFieldDefinitions)[number]["id"], string> {
-  const sections = new Map<string, string[]>();
-  let currentLabel: string | undefined;
-
-  for (const line of body.split(/\r?\n/)) {
-    const heading = /^###\s+(.+?)\s*$/.exec(line);
-    if (heading) {
-      currentLabel = heading[1];
-      sections.set(currentLabel, []);
-      continue;
-    }
-    if (currentLabel) {
-      sections.get(currentLabel)?.push(line);
-    }
-  }
-
-  const result = {} as Record<(typeof issueFieldDefinitions)[number]["id"], string>;
-  for (const field of issueFieldDefinitions) {
-    result[field.id] = trimNoResponse((sections.get(field.label) ?? []).join("\n"));
-  }
-  return result;
-}
-
-export function parseIssueFormFields(
-  body: string,
-): Partial<Record<(typeof issueFieldDefinitions)[number]["id"], string>> {
-  const fields = parseIssueFormBody(body);
-  return Object.fromEntries(Object.entries(fields).filter(([, value]) => value)) as Partial<
-    Record<(typeof issueFieldDefinitions)[number]["id"], string>
-  >;
-}
-
 function parseTmdbUrl(value: string): { mediaType: "movie" | "tv"; tmdbId: number } {
   let url: URL;
   try {
@@ -182,115 +148,43 @@ function parseTmdbUrl(value: string): { mediaType: "movie" | "tv"; tmdbId: numbe
   return { mediaType, tmdbId };
 }
 
-export function normalizeIssueFields(rawFields: Record<string, string>): IssueFormFields {
-  for (const field of issueFieldDefinitions) {
-    if (field.required && !rawFields[field.id]?.trim()) {
-      fail(`${field.id} is required`);
-    }
-  }
-
-  const tmdb = parseTmdbUrl(rawFields.tmdb_url.trim());
-  const mediaType = tmdb.mediaType;
-
-  const notes = rawFields.notes?.trim() || undefined;
-  const rawSeason = rawFields.season?.trim();
-  let season: number | null | undefined;
-  if (mediaType === "tv") {
-    if (rawSeason) {
-      season = Number(rawSeason);
-      if (!Number.isInteger(season) || season < 0) {
-        fail("season must be a non-negative integer");
-      }
-    } else {
-      season = null;
-    }
-  }
-
-  const platformUrls = rawFields.platform_urls
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  if (platformUrls.length === 0) {
-    fail("platform_urls must contain at least one URL");
-  }
-  for (const platformUrl of platformUrls) {
-    try {
-      new URL(platformUrl);
-    } catch {
-      fail(`platform_urls contains an invalid URL: ${platformUrl}`);
-    }
-  }
-
-  return {
-    media_title: rawFields.media_title?.trim() || undefined,
-    media_type: mediaType,
-    tmdb_url: rawFields.tmdb_url.trim(),
-    season,
-    platform_urls: platformUrls,
-    notes,
-  };
+export function parseIssueFieldsStructuredResponse(value: unknown): IssueFormFields {
+  return issueFormFieldsSchema.parse(value);
 }
 
-export function validateIssueFields(rawFields: Record<string, string>): Record<string, string> {
-  normalizeIssueFields(rawFields);
-  return rawFields;
-}
-
-export function validateCandidateForIssue(
-  candidate: MappingCandidate,
-  fields: IssueFormFields,
-  metadata: TmdbMetadata,
-): CanonicalMapping {
-  const tmdb = parseTmdbUrl(fields.tmdb_url);
-  if (candidate.type !== tmdb.mediaType) {
-    fail("model output media type does not match issue field");
-  }
-  if (candidate.tmdbId !== tmdb.tmdbId) {
-    fail("model output TMDB id does not match issue URL");
-  }
-  if (candidate.type === "tv" && (candidate.season ?? null) !== (fields.season ?? null)) {
-    fail("model output season does not match issue field");
-  }
-  const submittedUrls = new Set(fields.platform_urls.map((url) => new URL(url).href));
-  for (const provider of candidate.providers) {
-    if (!submittedUrls.has(new URL(provider.url).href)) {
-      fail("model output provider URL was not present in trusted platform_urls field");
+export async function extractIssueFields(
+  issueBody: string,
+  repoRoot: string,
+  env: NodeJS.ProcessEnv,
+): Promise<IssueFormFields> {
+  const selection = modelSelection(env);
+  const { client, server } = await createOpencode({ config: opencodeConfig(env), timeout: 120_000 });
+  try {
+    const session = sdkData(await client.session.create({ directory: repoRoot, title: "TMDB platform mapping agent" }));
+    const format: OutputFormat = {
+      type: "json_schema",
+      schema: issueFormFieldsOutputJsonSchema,
+      retryCount: 2,
+    };
+    const response = sdkData(
+      await client.session.prompt({
+        sessionID: session.id,
+        directory: repoRoot,
+        model: selection,
+        agent: "build",
+        tools: {},
+        format,
+        parts: [{ type: "text", text: buildIssueFieldsPrompt(issueBody) }],
+      }),
+    );
+    const structuredResponse = response.info?.structured;
+    if (structuredResponse === undefined) {
+      fail("OpenCode SDK response did not include structured output");
     }
-    if (!provider.idString.trim()) {
-      fail("model output provider idString is empty");
-    }
+    return parseIssueFieldsStructuredResponse(structuredResponse);
+  } finally {
+    server.close();
   }
-
-  return {
-    ...candidate,
-    sourceUrl: fields.tmdb_url,
-    title: metadata.title,
-    year: metadata.year,
-    notes: fields.notes,
-    providers: candidate.providers.map(({ provider, idString }) => ({
-      provider,
-      idString,
-    })),
-  };
-}
-
-export function parseModelResponse(value: unknown): z.infer<typeof modelResponseSchema> {
-  const parsed = typeof value === "string" ? JSON.parse(stripJsonFence(value)) : value;
-  return modelResponseSchema.parse(parsed);
-}
-
-export const parseExtractionResponse = parseModelResponse;
-
-export function validateConfidentMapping(
-  response: z.infer<typeof modelResponseSchema>,
-  rawFields: Record<string, string>,
-): MappingCandidate {
-  if (response.status === "ambiguous") {
-    fail(response.reason);
-  }
-  const fields = normalizeIssueFields(rawFields);
-  void validateCandidateForIssue(response.mapping, fields, { title: fields.media_title ?? "" });
-  return response.mapping;
 }
 
 export function toCanonicalMapping(candidate: MappingCandidate): CanonicalMapping {
@@ -301,12 +195,6 @@ export function toCanonicalMapping(candidate: MappingCandidate): CanonicalMappin
       idString,
     })),
   };
-}
-
-function stripJsonFence(value: string): string {
-  const trimmed = value.trim();
-  const match = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
-  return match ? match[1].trim() : trimmed;
 }
 
 export function buildMappingPrompt(fields: IssueFormFields, metadata: TmdbMetadata): string {
@@ -320,6 +208,16 @@ export function buildMappingPrompt(fields: IssueFormFields, metadata: TmdbMetada
     JSON.stringify(fields, null, 2),
     "Trusted TMDB metadata:",
     JSON.stringify(metadata, null, 2),
+  ].join("\n\n");
+}
+
+export function buildIssueFieldsPrompt(issueBody: string): string {
+  return [
+    "Extract the issue form fields from the exact raw issue body below.",
+    "Headings and labels may vary, so match fields by meaning rather than exact wording.",
+    "Return JSON matching the provided schema.",
+    "Issue body:",
+    issueBody,
   ].join("\n\n");
 }
 
@@ -559,13 +457,13 @@ export async function runMappingAgent(options: MappingAgentOptions): Promise<Map
   const env = options.env ?? process.env;
   initializeMappingFetchAdapter();
   try {
-    const fields = normalizeIssueFields(parseIssueFormBody(options.issueBody));
+    const fields = await extractIssueFields(options.issueBody, repoRoot, env);
     const metadata = await fetchTmdbMetadata(fields, env);
     const resolvedProviders = await resolvePlatformProviders(fields.platform_urls);
     const candidate = resolvedProviders
       ? createResolvedCandidate(fields, metadata, resolvedProviders)
       : await generateCandidate(fields, metadata, repoRoot, env);
-    const mapping = validateCandidateForIssue(candidate, fields, metadata);
+    const mapping = toCanonicalMapping(candidate);
     writeMappingArtifacts(repoRoot, options.issueNumber, mapping);
     const summary: MappingAgentSummary = {
       status: "success",
