@@ -1,5 +1,11 @@
 # @forward-widget/danmu-universe
 
+## 0.15.4
+
+### Patch Changes
+
+- a3ff90d: Add TMDB local mapping for 妻子的浪漫旅行.
+
 ## 0.15.3
 
 ### Patch Changes
