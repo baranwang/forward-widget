@@ -1,0 +1,1 @@
+2026-05-26: The `tmdb-platform-mapping` GitHub Actions job failed because the repo-owned mapping agent runs TypeScript source that imports scraper-kit subpath exports resolved from `dist`, but CI had not built `@forward-widget/scraper-kit`. Fixed by adding a gated workflow step to run `pnpm --filter @forward-widget/scraper-kit build` before the mapping agent.
