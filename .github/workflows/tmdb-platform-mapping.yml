@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   tmdb-platform-mapping:
-    if: ${{ github.event.issue.pull_request == null }}
+    if: ${{ github.event.issue.pull_request == null && github.event.label.name == 'tmdb-mapping-approved' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -54,10 +54,11 @@ jobs:
               permission = response.data.permission;
             }
             const allowedPermissions = new Set(['admin', 'maintain', 'write']);
-            const isAuthorized = allowedPermissions.has(permission);
+            const isRepoOwner = context.actor === context.repo.owner;
+            const isAuthorized = isRepoOwner || allowedPermissions.has(permission);
 
             const canProceed = triggerLabel && hasLabel && isAuthorized;
-            core.info(`triggerLabel=${triggerLabel} hasLabel=${hasLabel} actor=${context.actor} permission=${permission} isAuthorized=${isAuthorized}`);
+            core.info(`triggerLabel=${triggerLabel} hasLabel=${hasLabel} actor=${context.actor} isRepoOwner=${isRepoOwner} permission=${permission} isAuthorized=${isAuthorized}`);
 
             core.setOutput('trigger_label', String(triggerLabel));
             core.setOutput('has_label', String(hasLabel));
