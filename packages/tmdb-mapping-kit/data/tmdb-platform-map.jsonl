@@ -1,3 +1,4 @@
 
 {"type":"tv","season":null,"tmdbId":282136,"title":"将夜","year":2026,"sourceUrl":"https://www.themoviedb.org/tv/282136","verifiedAt":"2026-05-17T16:30:45.998Z","providers":[{"provider":"bilibili","idString":"seasonId=45962"}]}
 {"type":"tv","season":6,"tmdbId":97199,"title":"妻子的浪漫旅行","year":2018,"sourceUrl":"https://www.themoviedb.org/tv/97199","verifiedAt":"2026-05-26T13:44:22.554Z","providers":[{"provider":"mgtv","idString":"dramaId=860862"}]}
+{"tmdbId":282158,"title":"择天记","sourceUrl":"https://www.themoviedb.org/tv/282158","verifiedAt":"2026-05-26T00:00:00Z","type":"tv","year":2026,"season":1,"providers":[{"provider":"iqiyi","idString":"a_1b6uu4ofb5l"}]}
