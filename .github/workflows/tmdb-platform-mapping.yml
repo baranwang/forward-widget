@@ -1,9 +1,9 @@
 name: TMDB Platform Mapping Automation
 
 on:
-  issue_comment:
+  issues:
     types:
-      - created
+      - labeled
 
 permissions:
   contents: write
@@ -38,23 +38,49 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const commentBody = (context.payload.comment?.body ?? '').trim();
-            const exactOk = commentBody === '/ok';
+            const approvalLabel = 'tmdb-mapping-approved';
+            const triggerLabel = context.payload.label?.name === approvalLabel;
 
             const issueLabels = context.payload.issue?.labels ?? [];
             const hasLabel = issueLabels.some((label) => label.name === 'tmdb-mapping');
 
-            const allowedAssociations = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
-            const association = context.payload.comment?.author_association ?? '';
-            const isAuthorized = allowedAssociations.has(association);
+            let permission = 'none';
+            if (triggerLabel) {
+              const response = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                username: context.actor,
+              });
+              permission = response.data.permission;
+            }
+            const allowedPermissions = new Set(['admin', 'maintain', 'write']);
+            const isAuthorized = allowedPermissions.has(permission);
 
-            const canProceed = exactOk && hasLabel && isAuthorized;
-            core.info(`exactOk=${exactOk} hasLabel=${hasLabel} association=${association} isAuthorized=${isAuthorized}`);
+            const canProceed = triggerLabel && hasLabel && isAuthorized;
+            core.info(`triggerLabel=${triggerLabel} hasLabel=${hasLabel} actor=${context.actor} permission=${permission} isAuthorized=${isAuthorized}`);
 
-            core.setOutput('exact_ok', String(exactOk));
+            core.setOutput('trigger_label', String(triggerLabel));
             core.setOutput('has_label', String(hasLabel));
             core.setOutput('is_authorized', String(isAuthorized));
             core.setOutput('can_proceed', String(canProceed));
+
+      - name: Remove approval trigger label
+        if: ${{ steps.gates.outputs.trigger_label == 'true' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                name: 'tmdb-mapping-approved',
+              });
+            } catch (error) {
+              if (error.status !== 404) {
+                throw error;
+              }
+            }
 
       - name: Idempotency pre-check
         id: idempotency
