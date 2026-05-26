@@ -123,7 +123,7 @@ jobs:
 
       - name: Build mapping agent workspace dependencies
         if: ${{ steps.gates.outputs.can_proceed == 'true' && steps.idempotency.outputs.already_processed != 'true' }}
-        run: pnpm --filter @forward-widget/scraper-kit build
+        run: pnpm --filter @forward-widget/scraper-kit... build
 
       - name: Run repo-owned mapping agent
         id: mapping_agent
