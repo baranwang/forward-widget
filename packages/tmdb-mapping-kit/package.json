@@ -31,6 +31,7 @@
     "@rstest/core": "^0.9.10",
     "@forward-widget/scraper-kit": "workspace:^",
     "@types/node": "^24.12.4",
+    "rsbuild-plugin-protobufjs": "^0.1.0",
     "typescript": "^6.0.3"
   },
   "dependencies": {
