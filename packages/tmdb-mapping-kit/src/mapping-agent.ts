@@ -144,6 +144,12 @@ export type MappingAgentSummary = {
 
 export const mappingArtifactPaths = ["packages/tmdb-mapping-kit/data"] as const;
 
+const mappingAgentRequestTimeoutMs = 120_000;
+
+function mappingAgentRequestSignal(): AbortSignal {
+  return AbortSignal.timeout(mappingAgentRequestTimeoutMs);
+}
+
 type ModelSelection = {
   providerID: string;
   modelID: string;
@@ -162,6 +168,7 @@ function initializeMappingFetchAdapter() {
     async get<T>(url: string, options?: HttpAdapterRequestOptions) {
       const response = await fetch(url, {
         headers: options?.headers,
+        signal: mappingAgentRequestSignal(),
       });
       return {
         data: (await response.json()) as T,
@@ -174,6 +181,7 @@ function initializeMappingFetchAdapter() {
         method: "POST",
         headers: options?.headers,
         body: typeof body === "string" ? body : JSON.stringify(body),
+        signal: mappingAgentRequestSignal(),
       });
       return {
         data: (await response.json()) as T,
@@ -369,6 +377,7 @@ export async function fetchTmdbMetadata(fields: IssueFormFields, env: NodeJS.Pro
         Authorization: `Bearer ${token}`,
         Accept: "application/json",
       },
+      signal: mappingAgentRequestSignal(),
     },
   );
   if (!response.ok) {

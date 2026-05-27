@@ -322,7 +322,10 @@ describe("TMDB metadata fetch", () => {
   }
 
   test("fetches movie title and year from TMDB metadata", async () => {
-    const fetchImpl = async () => response({ title: "TMDB Movie", release_date: "2025-03-01" });
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
+      return response({ title: "TMDB Movie", release_date: "2025-03-01" });
+    };
 
     await withMockedFetch(fetchImpl, async () => {
       await expect(fetchTmdbMetadata(movieFields, { TMDB_ACCESS_TOKEN: "token" })).resolves.toEqual({
