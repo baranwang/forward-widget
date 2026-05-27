@@ -1,15 +1,6 @@
-import type { ProviderName } from "@forward-widget/scraper-kit/provider-metadata";
+export type { LocalGeneratedMap, LocalMapProvider } from "./generate-local-map";
 
-export interface LocalMapProvider {
-  provider: ProviderName;
-  idString: string;
-  episodeNumber?: number;
-}
-
-export type LocalGeneratedMap = {
-  movie: Record<string, LocalMapProvider[]>;
-  tv: Record<string, Record<string, LocalMapProvider[]>>;
-};
+import type { LocalGeneratedMap } from "./generate-local-map";
 
 export const LOCAL_TMDB_PLATFORM_MAP: LocalGeneratedMap = {
   movie: {},

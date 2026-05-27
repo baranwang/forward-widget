@@ -6,16 +6,18 @@ import { createOpencode } from "@opencode-ai/sdk/v2";
 import { describe, expect, rs, test } from "@rstest/core";
 import { z } from "zod";
 import {
-  assertNoDuplicateMapping,
   buildIssueFieldsPrompt,
+  buildMappingPrompt,
   createChangesetContent,
+  createMappingFileContent,
   defaultRepoRoot,
   fetchTmdbMetadata,
   type IssueFormFields,
   issueFormFieldsOutputJsonSchema,
   issueFormFieldsSchema,
   mappingAgentOutputJsonSchema,
-  mappingArtifactPaths,
+  mappingDataRelativePath,
+  mergeMappingFile,
   modelResponseOutputSchema,
   modelSelection,
   parseCliArgs,
@@ -25,6 +27,7 @@ import {
   runMappingAgent,
   runMappingAgentCli,
   writeMappingAgentSummary,
+  writeMappingArtifacts,
 } from "./mapping-agent.ts";
 
 rs.mock("@opencode-ai/sdk/v2", () => ({
@@ -209,9 +212,6 @@ describe("model output validation", () => {
       type: "movie",
       tmdbId: 980477,
       title: "Model Title",
-      year: 2000,
-      sourceUrl: "https://www.themoviedb.org/movie/980477",
-      verifiedAt: "2026-05-17T10:00:00.000Z",
       providers: [{ provider: "iqiyi", idString: "demo", url: "https://v.qq.com/x/cover/demo.html" }],
     },
   };
@@ -250,9 +250,6 @@ describe("model output validation", () => {
         type: "movie",
         tmdbId: 980477,
         title: "Model Title",
-        year: 2000,
-        sourceUrl: "https://www.themoviedb.org/movie/980477",
-        verifiedAt: "2026-05-17T10:00:00.000Z",
         providers: [{ provider: "iqiyi", idString: "demo", url: "https://v.qq.com/x/cover/demo.html" }],
       },
     });
@@ -263,6 +260,25 @@ describe("model output validation", () => {
       status: "ambiguous",
       reason: "two possible ids",
     });
+  });
+
+  test("builds a prompt for provider-level season, range, offset, and ambiguity rules", () => {
+    const prompt = buildMappingPrompt(
+      {
+        media_type: "tv",
+        tmdb_url: "https://www.themoviedb.org/tv/95479",
+        season: 1,
+        platform_urls: ["https://www.bilibili.com/bangumi/play/ss34430"],
+      },
+      { title: "Jujutsu Kaisen", year: 2020 },
+    );
+
+    expect(prompt).toContain("provider-level season");
+    expect(prompt).toContain("inclusive TMDB episode range");
+    expect(prompt).toContain("epOffset defaults to 0");
+    expect(prompt).toContain("idString is opaque");
+    expect(prompt).toContain("return ambiguous");
+    expect(prompt).toContain("Do not infer split episode ranges");
   });
 });
 
@@ -347,15 +363,140 @@ describe("write safety helpers", () => {
     type: "movie" as const,
     tmdbId: 980477,
     title: "Ne Zha 2",
-    year: 2025,
-    sourceUrl: "https://www.themoviedb.org/movie/980477",
-    verifiedAt: "2026-05-17T10:00:00.000Z",
     providers: [{ provider: "iqiyi" as const, idString: "abc" }],
   };
 
-  test("rejects duplicate JSONL rows before writes", () => {
-    assertNoDuplicateMapping("", mapping);
-    expect(() => assertNoDuplicateMapping(`${JSON.stringify(mapping)}\n`, mapping)).toThrow("mapping already exists");
+  test("creates stable JSON file content without source metadata", () => {
+    expect(createMappingFileContent(mapping)).toBe(`${JSON.stringify(mapping, null, 2)}\n`);
+  });
+
+  test("merges exact duplicate provider entries as a no-op", () => {
+    const existing = {
+      type: "tv" as const,
+      tmdbId: 95479,
+      title: "Jujutsu Kaisen",
+      providers: [{ season: 1, provider: "bilibili" as const, idString: "seasonId=34430", epOffset: 0 }],
+    };
+
+    expect(mergeMappingFile(existing, existing)).toEqual({ mapping: existing, changed: false });
+  });
+
+  test("rejects overlapping ranges for the same provider, season, and idString", () => {
+    const existing = {
+      type: "tv" as const,
+      tmdbId: 95479,
+      title: "Jujutsu Kaisen",
+      providers: [
+        {
+          season: 1,
+          provider: "bilibili" as const,
+          idString: "seasonId=34430",
+          epRange: [1, 24] as [number, number],
+          epOffset: 0,
+        },
+      ],
+    };
+    const incoming = {
+      type: "tv" as const,
+      tmdbId: 95479,
+      title: "Jujutsu Kaisen",
+      providers: [
+        {
+          season: 1,
+          provider: "bilibili" as const,
+          idString: "seasonId=34430",
+          epRange: [24, 30] as [number, number],
+          epOffset: 0,
+        },
+      ],
+    };
+
+    expect(() => mergeMappingFile(existing, incoming)).toThrow("provider entry overlaps");
+  });
+
+  test("allows overlapping ranges for different idString values and no-range entries", () => {
+    const existing = {
+      type: "tv" as const,
+      tmdbId: 95479,
+      title: "Jujutsu Kaisen",
+      providers: [
+        {
+          season: 1,
+          provider: "bilibili" as const,
+          idString: "seasonId=34430",
+          epRange: [1, 24] as [number, number],
+          epOffset: 0,
+        },
+        { season: 1, provider: "bilibili" as const, idString: "seasonId=all", epOffset: 0 },
+      ],
+    };
+    const incoming = {
+      type: "tv" as const,
+      tmdbId: 95479,
+      title: "Jujutsu Kaisen",
+      providers: [
+        {
+          season: 1,
+          provider: "bilibili" as const,
+          idString: "seasonId=45574",
+          epRange: [12, 47] as [number, number],
+          epOffset: -24,
+        },
+        { season: 1, provider: "bilibili" as const, idString: "seasonId=34430", epOffset: 0 },
+      ],
+    };
+
+    const result = mergeMappingFile(existing, incoming);
+
+    expect(result.changed).toBe(true);
+    expect(result.mapping.providers).toHaveLength(4);
+  });
+
+  test("updates an existing JSON mapping file with a new provider entry", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "tmdb-mapping-write-"));
+    const existing = {
+      type: "tv" as const,
+      tmdbId: 95479,
+      title: "Jujutsu Kaisen",
+      providers: [
+        {
+          season: 1,
+          provider: "bilibili" as const,
+          idString: "seasonId=34430",
+          epRange: [1, 24] as [number, number],
+          epOffset: 0,
+        },
+      ],
+    };
+    const incoming = {
+      type: "tv" as const,
+      tmdbId: 95479,
+      title: "Jujutsu Kaisen",
+      providers: [
+        {
+          season: 1,
+          provider: "bilibili" as const,
+          idString: "seasonId=45574",
+          epRange: [25, 47] as [number, number],
+          epOffset: -24,
+        },
+      ],
+    };
+    const dataPath = path.join(tempDir, mappingDataRelativePath(existing));
+    fs.mkdirSync(path.dirname(dataPath), { recursive: true });
+    fs.writeFileSync(dataPath, createMappingFileContent(existing));
+
+    const result = writeMappingArtifacts(tempDir, 42, incoming);
+
+    expect(result).toEqual({
+      changed: true,
+      changedFiles: [mappingDataRelativePath(incoming), ".changeset/tmdb-mapping-issue-42.md"],
+    });
+    const updated = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+    expect(updated.providers).toEqual([
+      { season: 1, provider: "bilibili", idString: "seasonId=34430", epRange: [1, 24], epOffset: 0 },
+      { season: 1, provider: "bilibili", idString: "seasonId=45574", epRange: [25, 47], epOffset: -24 },
+    ]);
   });
 
   test("creates a changeset for affected packages", () => {
@@ -371,7 +512,7 @@ describe("write safety helpers", () => {
       issueNumber: 42,
       mappingTitle: "Example Show",
       mappingYear: 2025,
-      changedFiles: [...mappingArtifactPaths, ".changeset/tmdb-mapping-issue-42.md"],
+      changedFiles: [mappingDataRelativePath(mapping), ".changeset/tmdb-mapping-issue-42.md"],
       message: "ok",
     });
 
@@ -381,7 +522,7 @@ describe("write safety helpers", () => {
       issueNumber: 42,
       mappingTitle: "Example Show",
       mappingYear: 2025,
-      changedFiles: [...mappingArtifactPaths, ".changeset/tmdb-mapping-issue-42.md"],
+      changedFiles: [mappingDataRelativePath(mapping), ".changeset/tmdb-mapping-issue-42.md"],
       message: "ok",
     });
   });
@@ -506,11 +647,10 @@ describe("runMappingAgent integration", () => {
   test("uses OpenCode fallback for unsupported provider URLs", async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "tmdb-mapping-run-"));
     const repoRoot = tempDir;
-    const dataPath = path.join(repoRoot, "packages", "tmdb-mapping-kit", "data", "tmdb-platform-map.jsonl");
+    const dataPath = path.join(repoRoot, mappingDataRelativePath({ type: "movie", tmdbId: 999999 }));
     const changesetDir = path.join(repoRoot, ".changeset");
     fs.mkdirSync(path.dirname(dataPath), { recursive: true });
     fs.mkdirSync(changesetDir, { recursive: true });
-    fs.writeFileSync(dataPath, "");
 
     const issueBody = `### 媒体标题（可选）
 
@@ -551,9 +691,6 @@ https://example.com/watch/unknown-provider
               type: "movie",
               tmdbId: 999999,
               title: "Mismatched Candidate",
-              year: 1999,
-              sourceUrl: "https://www.themoviedb.org/movie/999999",
-              verifiedAt: "2026-05-17T10:00:00.000Z",
               providers: [
                 {
                   provider: "iqiyi",
@@ -591,8 +728,8 @@ https://example.com/watch/unknown-provider
       status: "success",
       issueNumber: 42,
       mappingTitle: "Mismatched Candidate",
-      mappingYear: 1999,
-      changedFiles: [...mappingArtifactPaths, ".changeset/tmdb-mapping-issue-42.md"],
+      mappingYear: 2025,
+      changedFiles: [mappingDataRelativePath({ type: "movie", tmdbId: 999999 }), ".changeset/tmdb-mapping-issue-42.md"],
       message: "TMDB mapping artifacts written for Mismatched Candidate",
     });
 
@@ -604,16 +741,16 @@ https://example.com/watch/unknown-provider
 
     const summaryFile = JSON.parse(fs.readFileSync(summaryPath, "utf8"));
     expect(summaryFile).toEqual(summary);
-    const [jsonl] = fs.readFileSync(dataPath, "utf8").trim().split(/\r?\n/);
-    expect(JSON.parse(jsonl)).toMatchObject({
+    const json = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+    expect(json).toMatchObject({
       type: "movie",
       tmdbId: 999999,
       title: "Mismatched Candidate",
-      year: 1999,
-      sourceUrl: "https://www.themoviedb.org/movie/999999",
       providers: [{ provider: "iqiyi", idString: "demo" }],
     });
-    expect("url" in JSON.parse(jsonl).providers[0]).toBe(false);
+    expect(json).not.toHaveProperty("sourceUrl");
+    expect(json).not.toHaveProperty("verifiedAt");
+    expect("url" in json.providers[0]).toBe(false);
     expect(fs.existsSync(path.join(repoRoot, ".changeset", "tmdb-mapping-issue-42.md"))).toBe(true);
     expect(fs.existsSync(dataPath)).toBe(true);
   });
@@ -621,14 +758,13 @@ https://example.com/watch/unknown-provider
   test("resolves Bilibili episode URLs with OpenCode extraction", async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "tmdb-mapping-run-"));
     const repoRoot = tempDir;
-    const dataPath = path.join(repoRoot, "packages", "tmdb-mapping-kit", "data", "tmdb-platform-map.jsonl");
+    const dataPath = path.join(repoRoot, mappingDataRelativePath({ type: "tv", tmdbId: 282136 }));
     fs.mkdirSync(path.dirname(dataPath), { recursive: true });
     fs.mkdirSync(path.join(repoRoot, ".changeset"), { recursive: true });
-    fs.writeFileSync(dataPath, "");
 
     const issueBody = `### 媒体标题（可选）
 
-_No response_
+    1
 
 ### TMDB 链接
 
@@ -664,7 +800,7 @@ https://www.bilibili.com/bangumi/play/ep3409878
       media_title: undefined,
       media_type: "tv",
       tmdb_url: "https://www.themoviedb.org/tv/282136",
-      season: null,
+      season: 1,
       platform_urls: ["https://www.bilibili.com/bangumi/play/ep3409878"],
       notes: undefined,
     });
@@ -692,29 +828,28 @@ https://www.bilibili.com/bangumi/play/ep3409878
     expect(mockedCreateOpencode).toHaveBeenCalledTimes(1);
     expect(sessionPrompt).toHaveBeenCalledTimes(1);
 
-    const [jsonl] = fs.readFileSync(dataPath, "utf8").trim().split(/\r?\n/);
-    expect(JSON.parse(jsonl)).toMatchObject({
+    const json = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+    expect(json).toMatchObject({
       type: "tv",
       tmdbId: 282136,
       title: "将夜",
-      year: 2018,
-      season: null,
-      providers: [{ provider: "bilibili", idString: "seasonId=45962" }],
+      providers: [{ season: 1, provider: "bilibili", idString: "seasonId=45962", epOffset: 0 }],
     });
-    expect("url" in JSON.parse(jsonl).providers[0]).toBe(false);
+    expect(json).not.toHaveProperty("sourceUrl");
+    expect(json).not.toHaveProperty("verifiedAt");
+    expect("url" in json.providers[0]).toBe(false);
   });
 
   test("resolves Bilibili season URLs with OpenCode extraction", async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "tmdb-mapping-run-"));
     const repoRoot = tempDir;
-    const dataPath = path.join(repoRoot, "packages", "tmdb-mapping-kit", "data", "tmdb-platform-map.jsonl");
+    const dataPath = path.join(repoRoot, mappingDataRelativePath({ type: "tv", tmdbId: 282136 }));
     fs.mkdirSync(path.dirname(dataPath), { recursive: true });
     fs.mkdirSync(path.join(repoRoot, ".changeset"), { recursive: true });
-    fs.writeFileSync(dataPath, "");
 
     const issueBody = `### 媒体标题（可选）
 
-_No response_
+    1
 
 ### TMDB 链接
 
@@ -744,7 +879,7 @@ https://www.bilibili.com/bangumi/play/ss45962
       media_title: undefined,
       media_type: "tv",
       tmdb_url: "https://www.themoviedb.org/tv/282136",
-      season: null,
+      season: 1,
       platform_urls: ["https://www.bilibili.com/bangumi/play/ss45962"],
       notes: undefined,
     });
@@ -772,25 +907,22 @@ https://www.bilibili.com/bangumi/play/ss45962
     expect(mockedCreateOpencode).toHaveBeenCalledTimes(1);
     expect(sessionPrompt).toHaveBeenCalledTimes(1);
 
-    const [jsonl] = fs.readFileSync(dataPath, "utf8").trim().split(/\r?\n/);
-    expect(JSON.parse(jsonl)).toMatchObject({
+    const seasonJson = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+    expect(seasonJson).toMatchObject({
       type: "tv",
       tmdbId: 282136,
       title: "将夜",
-      year: 2018,
-      season: null,
-      providers: [{ provider: "bilibili", idString: "seasonId=45962" }],
+      providers: [{ season: 1, provider: "bilibili", idString: "seasonId=45962", epOffset: 0 }],
     });
-    expect("url" in JSON.parse(jsonl).providers[0]).toBe(false);
+    expect("url" in seasonJson.providers[0]).toBe(false);
   });
 
   test("resolves MGTV drama URLs with OpenCode extraction", async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "tmdb-mapping-run-"));
     const repoRoot = tempDir;
-    const dataPath = path.join(repoRoot, "packages", "tmdb-mapping-kit", "data", "tmdb-platform-map.jsonl");
+    const dataPath = path.join(repoRoot, mappingDataRelativePath({ type: "tv", tmdbId: 97199 }));
     fs.mkdirSync(path.dirname(dataPath), { recursive: true });
     fs.mkdirSync(path.join(repoRoot, ".changeset"), { recursive: true });
-    fs.writeFileSync(dataPath, "");
 
     const issueBody = `### 媒体标题（可选）
 
@@ -852,15 +984,13 @@ https://www.mgtv.com/h/860862.html
     expect(mockedCreateOpencode).toHaveBeenCalledTimes(1);
     expect(sessionPrompt).toHaveBeenCalledTimes(1);
 
-    const [jsonl] = fs.readFileSync(dataPath, "utf8").trim().split(/\r?\n/);
-    expect(JSON.parse(jsonl)).toMatchObject({
+    const mgtvJson = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+    expect(mgtvJson).toMatchObject({
       type: "tv",
       tmdbId: 97199,
       title: "妻子的浪漫旅行",
-      year: 2018,
-      season: 6,
-      providers: [{ provider: "mgtv", idString: "dramaId=860862" }],
+      providers: [{ season: 6, provider: "mgtv", idString: "dramaId=860862", epOffset: 0 }],
     });
-    expect("url" in JSON.parse(jsonl).providers[0]).toBe(false);
+    expect("url" in mgtvJson.providers[0]).toBe(false);
   });
 });

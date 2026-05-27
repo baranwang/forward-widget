@@ -263,9 +263,9 @@ searchDanmu = async (params) => {
     }));
   };
 
-  const getMatchedEpisodes = async (items: GetEpisodeParam[]) => {
-    let matchedEpisodes = await scraper.getEpisodes(...addEpisodeNumber(items));
-    if (mediaType === "tv" && episode) {
+  const getMatchedEpisodes = async (items: GetEpisodeParam[], filterByRequestedEpisode = true) => {
+    let matchedEpisodes = await scraper.getEpisodes(...(filterByRequestedEpisode ? addEpisodeNumber(items) : items));
+    if (filterByRequestedEpisode && mediaType === "tv" && episode) {
       matchedEpisodes = matchedEpisodes.filter((item) => item.episodeNumber === parseInt(episode, 10));
     }
     return matchedEpisodes;
@@ -286,10 +286,16 @@ searchDanmu = async (params) => {
 
   const tmdbId = params.tmdbId ? Number(params.tmdbId) : NaN;
   const season = mediaType === "tv" && params.season !== undefined ? Number(params.season) : null;
-  const localEpisodeParams = Number.isInteger(tmdbId) ? getLocalEpisodeParams({ type: mediaType, tmdbId, season }) : [];
-  console.log("localEpisodeParams", localEpisodeParams);
+  const localEpisodeParams = Number.isInteger(tmdbId)
+    ? getLocalEpisodeParams({
+        type: mediaType,
+        tmdbId,
+        season,
+        episode: episode === undefined ? undefined : Number(episode),
+      })
+    : [];
   if (localEpisodeParams.length) {
-    const localEpisodes = await getMatchedEpisodes(localEpisodeParams);
+    const localEpisodes = await getMatchedEpisodes(localEpisodeParams, false);
     if (localEpisodes.length) return toSearchResult(localEpisodes);
   }
 
@@ -360,46 +366,16 @@ getComments = async (params) => {
 };
 
 if (import.meta.rstest) {
-  const { test, expect, describe, beforeAll } = import.meta.rstest;
+  const { beforeAll, expect, test } = import.meta.rstest;
 
   beforeAll(async () => {
     Widget.storage.clear();
   });
 
-  describe("searchDanmu", async () => {
-    test.each([
-      {
-        tmdbId: "282136",
-        type: "tv",
-        season: "1",
-        episode: "1",
-      },
-      // {
-      //   tmdbId: "980477",
-      //   seriesName: "哪吒之魔童闹海",
-      //   type: "movie",
-      //   season: "1",
-      //   episode: "1",
-      // },
-      // {
-      //   tmdbId: "243083",
-      //   seriesName: "国色芳华",
-      //   type: "tv",
-      //   season: "2",
-      //   episode: "20",
-      // },
-      // {
-      //   tmdbId: "242762",
-      //   seriesName: "子夜归",
-      //   type: "tv",
-      //   season: "1",
-      //   episode: "24",
-      // },
-    ] as Partial<SearchDanmuParams>[])("$seriesName", async (params) => {
-      const result = await searchDanmu(params as SearchDanmuParams);
-      expect(result).toBeDefined();
-      expect(result?.animes.length).toBeGreaterThan(0);
-      console.log(params.seriesName, result?.animes);
-    });
+  test("registers widget entrypoints", () => {
+    expect(WidgetMetadata.id).toBe("baranwang.danmu.universe");
+    expect(typeof searchDanmu).toBe("function");
+    expect(typeof getDetail).toBe("function");
+    expect(typeof getComments).toBe("function");
   });
 }

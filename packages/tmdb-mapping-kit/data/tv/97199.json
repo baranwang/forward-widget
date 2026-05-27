@@ -1,0 +1,12 @@
+{
+  "type": "tv",
+  "tmdbId": 97199,
+  "title": "妻子的浪漫旅行",
+  "providers": [
+    {
+      "season": 6,
+      "provider": "mgtv",
+      "idString": "dramaId=860862"
+    }
+  ]
+}

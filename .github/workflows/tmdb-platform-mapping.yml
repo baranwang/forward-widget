@@ -257,7 +257,7 @@ jobs:
           BRANCH_NAME: tmdb-mapping/issue-${{ github.event.issue.number }}
         run: |
           git checkout -B "$BRANCH_NAME"
-          git add packages/tmdb-mapping-kit/data/tmdb-platform-map.jsonl
+          git add packages/tmdb-mapping-kit/data
           git add .changeset
           if git diff --cached --quiet; then
             echo "No staged changes to commit."

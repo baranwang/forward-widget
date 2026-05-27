@@ -1,105 +1,42 @@
 import { expect, test } from "@rstest/core";
-import { canonicalMappingSchema, mappingCandidateSchema } from "../src/index";
+import { canonicalMappingSchema, mappingSchema } from "../src/index";
 
-test("canonical movie row with jsonl-shaped providers passes", () => {
-  const row = {
+test("public canonical schema accepts strict TV JSON mapping files", () => {
+  const result = canonicalMappingSchema.safeParse({
+    type: "tv",
+    tmdbId: 95479,
+    title: "咒术回战",
+    providers: [{ season: 1, provider: "bilibili", idString: "seasonId=34430", epRange: [1, 24] }],
+  });
+
+  expect(result.success).toBe(true);
+});
+
+test("public canonical schema defaults omitted TV epOffset to zero", () => {
+  const result = canonicalMappingSchema.parse({
+    type: "tv",
+    tmdbId: 95479,
+    title: "咒术回战",
+    providers: [{ season: 0, provider: "bilibili", idString: "seasonId=zero", epRange: [0, 0] }],
+  });
+
+  expect(result.providers).toEqual([
+    { season: 0, provider: "bilibili", idString: "seasonId=zero", epRange: [0, 0], epOffset: 0 },
+  ]);
+});
+
+test("public mappingSchema aliases the strict mapping file schema", () => {
+  const result = mappingSchema.parse({
     type: "movie",
     tmdbId: 129,
     title: "Spirited Away",
-    year: 2001,
-    sourceUrl: "https://www.themoviedb.org/movie/129",
-    verifiedAt: "2026-05-17T10:00:00.000Z",
-    providers: [
-      { provider: "iqiyi", idString: "123" },
-      { provider: "youku", idString: "abc", episodeNumber: 3 },
-    ],
-  };
+    providers: [{ provider: "iqiyi", idString: "vid-001" }],
+  });
 
-  const result = canonicalMappingSchema.safeParse(row);
-  expect(result.success).toBe(true);
-});
-
-test("canonical tv row with null season passes", () => {
-  const row = {
-    type: "tv",
-    tmdbId: 456,
-    title: "Example Show",
-    sourceUrl: "https://www.themoviedb.org/tv/456",
-    season: null,
-    verifiedAt: "2026-05-17T10:00:00.000Z",
-    notes: "manually checked",
-    state: "verified",
-    providers: [{ provider: "tencent", idString: "tv-1" }],
-  };
-
-  const result = canonicalMappingSchema.safeParse(row);
-  expect(result.success).toBe(true);
-});
-
-test("invalid provider fails canonical schema", () => {
-  const row = {
+  expect(result).toEqual({
     type: "movie",
-    tmdbId: 1,
-    title: "Bad Provider",
-    sourceUrl: "https://www.themoviedb.org/movie/1",
-    verifiedAt: "2026-05-17T10:00:00.000Z",
-    providers: [{ provider: "netflix", idString: "n-1" }],
-  };
-
-  const result = canonicalMappingSchema.safeParse(row);
-  expect(result.success).toBe(false);
-});
-
-test("invalid source url fails canonical schema", () => {
-  const row = {
-    type: "movie",
-    tmdbId: 2,
-    title: "Bad Url",
-    sourceUrl: "not-a-url",
-    verifiedAt: "2026-05-17T10:00:00.000Z",
-    providers: [{ provider: "renren", idString: "rr-1" }],
-  };
-
-  const result = canonicalMappingSchema.safeParse(row);
-  expect(result.success).toBe(false);
-});
-
-test("non-integer season fails canonical schema", () => {
-  const row = {
-    type: "tv",
-    tmdbId: 3,
-    title: "Bad Season",
-    sourceUrl: "https://www.themoviedb.org/tv/3",
-    season: 1.5,
-    verifiedAt: "2026-05-17T10:00:00.000Z",
-    providers: [{ provider: "mgtv", idString: "m-1" }],
-  };
-
-  const result = canonicalMappingSchema.safeParse(row);
-  expect(result.success).toBe(false);
-});
-
-test("candidate schema requires provider url", () => {
-  const missingProviderUrl = {
-    type: "movie",
-    tmdbId: 4,
-    title: "Candidate Missing Url",
-    sourceUrl: "https://www.themoviedb.org/movie/4",
-    verifiedAt: "2026-05-17T10:00:00.000Z",
-    providers: [{ provider: "bilibili", idString: "bb-1" }],
-  };
-
-  const withProviderUrl = {
-    ...missingProviderUrl,
-    providers: [
-      {
-        provider: "bilibili",
-        idString: "bb-1",
-        url: "https://www.bilibili.com/video/BV1xx",
-      },
-    ],
-  };
-
-  expect(mappingCandidateSchema.safeParse(missingProviderUrl).success).toBe(false);
-  expect(mappingCandidateSchema.safeParse(withProviderUrl).success).toBe(true);
+    tmdbId: 129,
+    title: "Spirited Away",
+    providers: [{ provider: "iqiyi", idString: "vid-001" }],
+  });
 });

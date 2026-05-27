@@ -1,0 +1,12 @@
+{
+  "type": "tv",
+  "tmdbId": 282136,
+  "title": "将夜",
+  "providers": [
+    {
+      "season": 1,
+      "provider": "bilibili",
+      "idString": "seasonId=45962"
+    }
+  ]
+}

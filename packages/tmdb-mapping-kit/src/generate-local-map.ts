@@ -1,14 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { providerNames } from "@forward-widget/scraper-kit/provider-metadata";
-
-const providerNameSet = new Set<string>(providerNames);
-
-type Provider = {
-  provider: string;
-  idString: string;
-  episodeNumber?: number;
-};
+import type { ZodError } from "zod";
+import { type MappingFile, type MovieProvider, mappingFileSchema, type TvProvider } from "./schema";
 
 export type GenerateLocalMapOptions = {
   sourcePath?: string;
@@ -20,163 +13,168 @@ export type GenerateLocalMapResult = {
   size: number;
 };
 
-type Entry = {
-  type: "movie" | "tv";
-  tmdbId: number;
-  season: string;
-  providers: Provider[];
+export type LocalMapProvider = MovieProvider | TvProvider;
+
+export type LocalGeneratedMap = {
+  movie: Record<string, MovieProvider[]>;
+  tv: Record<string, TvProvider[]>;
+};
+
+export type LocalMapSourceFile = {
+  filePath: string;
+  content: string;
 };
 
 function fail(message: string): never {
   throw new Error(message);
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function requireString(record: Record<string, unknown>, key: string, lineNumber: number): string {
-  const value = record[key];
-  if (typeof value !== "string" || !value) {
-    fail(`line ${lineNumber}: ${key} must be a non-empty string`);
-  }
-  return value;
-}
-
-function requireNumber(record: Record<string, unknown>, key: string, lineNumber: number): number {
-  const value = record[key];
-  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-    fail(`line ${lineNumber}: ${key} must be a non-negative integer`);
-  }
-  return value;
-}
-
-function optionalSeason(record: Record<string, unknown>, lineNumber: number): string {
-  const value = record.season;
-  if (value === undefined || value === null) {
-    return "series";
-  }
-  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-    fail(`line ${lineNumber}: season must be null or a non-negative integer`);
-  }
-  return String(value);
-}
-
-function normalizeProvider(value: unknown, lineNumber: number): Provider {
-  if (!isRecord(value)) {
-    fail(`line ${lineNumber}: provider item must be an object`);
-  }
-  const provider = requireString(value, "provider", lineNumber);
-  if (!providerNameSet.has(provider)) {
-    fail(`line ${lineNumber}: unsupported provider ${provider}`);
-  }
-  const idString = requireString(value, "idString", lineNumber);
-  const result: Provider = { provider, idString };
-  const episodeNumber = value.episodeNumber;
-  if (episodeNumber !== undefined) {
-    if (typeof episodeNumber !== "number" || !Number.isInteger(episodeNumber) || episodeNumber < 0) {
-      fail(`line ${lineNumber}: episodeNumber must be a non-negative integer`);
-    }
-    result.episodeNumber = episodeNumber;
-  }
-  return result;
-}
-
-function normalizeEntry(line: string, lineNumber: number): Entry {
-  const parsed: unknown = JSON.parse(line);
-  if (!isRecord(parsed)) {
-    fail(`line ${lineNumber}: entry must be an object`);
-  }
-  const type = requireString(parsed, "type", lineNumber);
-  if (type !== "movie" && type !== "tv") {
-    fail(`line ${lineNumber}: type must be movie or tv`);
-  }
-  const tmdbId = requireNumber(parsed, "tmdbId", lineNumber);
-  requireString(parsed, "title", lineNumber);
-  requireString(parsed, "sourceUrl", lineNumber);
-  requireString(parsed, "verifiedAt", lineNumber);
-  if (!Array.isArray(parsed.providers) || parsed.providers.length === 0) {
-    fail(`line ${lineNumber}: providers must be a non-empty array`);
-  }
-  return {
-    type,
-    tmdbId,
-    season: type === "tv" ? optionalSeason(parsed, lineNumber) : "0",
-    providers: parsed.providers.map((provider) => normalizeProvider(provider, lineNumber)),
-  };
-}
-
-function compareProvider(a: Provider, b: Provider): number {
-  if (a.provider !== b.provider) {
-    return a.provider.localeCompare(b.provider);
-  }
-  if (a.idString !== b.idString) {
-    return a.idString.localeCompare(b.idString);
-  }
-  return (a.episodeNumber ?? -1) - (b.episodeNumber ?? -1);
-}
-
 function defaultSourcePath(): string {
-  return path.resolve(import.meta.dirname, "..", "data", "tmdb-platform-map.jsonl");
+  return path.resolve(import.meta.dirname, "..", "data");
 }
 
 export function defaultLocalMapSourcePath(): string {
   return defaultSourcePath();
 }
 
-export function createLocalMap(content: string): {
-  movie: Record<string, Provider[]>;
-  tv: Record<string, Record<string, Provider[]>>;
-} {
-  const entries = content
-    .split("\n")
-    .map((line, index) => ({ line: line.trim(), lineNumber: index + 1 }))
-    .filter(({ line }) => line.length > 0)
-    .map(({ line, lineNumber }) => normalizeEntry(line, lineNumber))
-    .sort((a, b) => {
-      if (a.type !== b.type) {
-        return a.type.localeCompare(b.type);
-      }
-      if (a.tmdbId !== b.tmdbId) {
-        return a.tmdbId - b.tmdbId;
-      }
-      return Number(a.season) - Number(b.season);
-    });
+function compareOptionalNumber(a: number | undefined, b: number | undefined): number {
+  return (a ?? -1) - (b ?? -1);
+}
 
-  const map: {
-    movie: Record<string, Provider[]>;
-    tv: Record<string, Record<string, Provider[]>>;
-  } = { movie: {}, tv: {} };
-  const seen = new Set<string>();
+function compareProvider(a: LocalMapProvider, b: LocalMapProvider): number {
+  const seasonComparison = compareOptionalNumber(
+    "season" in a ? a.season : undefined,
+    "season" in b ? b.season : undefined,
+  );
+  if (seasonComparison !== 0) {
+    return seasonComparison;
+  }
+  if (a.provider !== b.provider) {
+    return a.provider.localeCompare(b.provider);
+  }
+  if (a.idString !== b.idString) {
+    return a.idString.localeCompare(b.idString);
+  }
+  const aRange = "epRange" in a ? a.epRange : undefined;
+  const bRange = "epRange" in b ? b.epRange : undefined;
+  const rangeStartComparison = compareOptionalNumber(aRange?.[0], bRange?.[0]);
+  if (rangeStartComparison !== 0) {
+    return rangeStartComparison;
+  }
+  return compareOptionalNumber(aRange?.[1], bRange?.[1]);
+}
 
-  for (const entry of entries) {
-    const key = `${entry.type}:${entry.tmdbId}:${entry.season}`;
-    if (seen.has(key)) {
-      fail(`duplicate mapping key ${key}`);
-    }
-    seen.add(key);
-    const providers = [...entry.providers].sort(compareProvider);
-    if (entry.type === "movie") {
-      map.movie[String(entry.tmdbId)] = providers;
+function compareMappingFile(a: MappingFile, b: MappingFile): number {
+  if (a.type !== b.type) {
+    return a.type.localeCompare(b.type);
+  }
+  return a.tmdbId - b.tmdbId;
+}
+
+function parseJsonFile(sourceFile: LocalMapSourceFile): unknown {
+  try {
+    return JSON.parse(sourceFile.content);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    fail(`${sourceFile.filePath}: invalid JSON: ${message}`);
+  }
+}
+
+function formatSchemaError(error: ZodError): string {
+  return error.issues
+    .map((issue) => `${issue.path.length > 0 ? issue.path.join(".") : "<root>"}: ${issue.message}`)
+    .sort()
+    .join("; ");
+}
+
+export function parseLocalMapSourceFile(sourceFile: LocalMapSourceFile): MappingFile {
+  const parsed = mappingFileSchema.safeParse(parseJsonFile(sourceFile));
+  if (!parsed.success) {
+    fail(`${sourceFile.filePath}: schema validation failed: ${formatSchemaError(parsed.error)}`);
+  }
+
+  const parentDirectory = path.basename(path.dirname(sourceFile.filePath));
+  if (parentDirectory !== "movie" && parentDirectory !== "tv") {
+    fail(`${sourceFile.filePath}: parent directory must be movie or tv`);
+  }
+  if (parsed.data.type !== parentDirectory) {
+    fail(`${sourceFile.filePath}: file is under ${parentDirectory} but body type is ${parsed.data.type}`);
+  }
+
+  const fileTmdbId = Number(path.basename(sourceFile.filePath, ".json"));
+  if (!Number.isInteger(fileTmdbId) || fileTmdbId < 0) {
+    fail(`${sourceFile.filePath}: filename must be a non-negative TMDB id ending in .json`);
+  }
+  if (parsed.data.tmdbId !== fileTmdbId) {
+    fail(`${sourceFile.filePath}: filename TMDB id ${fileTmdbId} does not match body tmdbId ${parsed.data.tmdbId}`);
+  }
+
+  return parsed.data;
+}
+
+export function readLocalMapSourceFiles(sourcePath = defaultSourcePath()): LocalMapSourceFile[] {
+  if (!fs.existsSync(sourcePath)) {
+    fail(`${sourcePath}: local map source directory does not exist`);
+  }
+  if (!fs.statSync(sourcePath).isDirectory()) {
+    fail(`${sourcePath}: local map source path must be a directory`);
+  }
+
+  const sourceFiles: LocalMapSourceFile[] = [];
+  for (const type of ["movie", "tv"] as const) {
+    const typeDirectory = path.resolve(sourcePath, type);
+    if (!fs.existsSync(typeDirectory)) {
       continue;
     }
-    const tmdbKey = String(entry.tmdbId);
-    map.tv[tmdbKey] ??= {};
-    map.tv[tmdbKey][entry.season] = providers;
+    for (const entry of fs.readdirSync(typeDirectory, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith(".json")) {
+        continue;
+      }
+      const filePath = path.join(typeDirectory, entry.name);
+      sourceFiles.push({ filePath, content: fs.readFileSync(filePath, "utf-8") });
+    }
+  }
+  return sourceFiles.sort((a, b) => a.filePath.localeCompare(b.filePath));
+}
+
+export function createLocalMap(sourceFiles: LocalMapSourceFile[]): LocalGeneratedMap {
+  const seenFiles = new Set<string>();
+  const seenTmdbKeys = new Set<string>();
+  const mappings = sourceFiles.map((sourceFile) => {
+    const normalizedPath = path.resolve(sourceFile.filePath);
+    if (seenFiles.has(normalizedPath)) {
+      fail(`${sourceFile.filePath}: duplicate source file`);
+    }
+    seenFiles.add(normalizedPath);
+    return parseLocalMapSourceFile(sourceFile);
+  });
+
+  const map: LocalGeneratedMap = { movie: {}, tv: {} };
+  for (const mapping of mappings.sort(compareMappingFile)) {
+    const mappingKey = `${mapping.type}:${mapping.tmdbId}`;
+    if (seenTmdbKeys.has(mappingKey)) {
+      fail(`duplicate TMDB mapping ${mappingKey}`);
+    }
+    seenTmdbKeys.add(mappingKey);
+
+    if (mapping.type === "movie") {
+      map.movie[String(mapping.tmdbId)] = [...mapping.providers].sort(compareProvider);
+      continue;
+    }
+    map.tv[String(mapping.tmdbId)] = [...mapping.providers].sort(compareProvider);
   }
 
   return map;
 }
 
-export function renderLocalMapRuntimeModule(content: string): string {
-  return `export const LOCAL_TMDB_PLATFORM_MAP = ${JSON.stringify(createLocalMap(content), null, 2)};\n`;
+export function renderLocalMapRuntimeModule(sourceFiles: LocalMapSourceFile[]): string {
+  return `export const LOCAL_TMDB_PLATFORM_MAP = ${JSON.stringify(createLocalMap(sourceFiles), null, 2)};\n`;
 }
 
 export function generateLocalMap(options?: GenerateLocalMapOptions): GenerateLocalMapResult {
   const sourcePath = options?.sourcePath ?? defaultSourcePath();
   const outputPath = options?.outputPath ?? path.resolve(process.cwd(), "dist", "local-map.js");
-  const content = fs.readFileSync(sourcePath, "utf-8");
-  const generated = renderLocalMapRuntimeModule(content);
+  const generated = renderLocalMapRuntimeModule(readLocalMapSourceFiles(sourcePath));
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, generated);

@@ -26,7 +26,7 @@ export class DoubanMatcher {
     if (season && season.toString() !== "1") {
       // tmdb 和 imdb 不分季，如果是多季的豆瓣一般会用 n 季第一集的 imdbid
       const seasons = await this.imdbMatcher.getImdbSeasons(imdbId);
-      if (!seasons || parseInt(season.toString()) > seasons.seasons.length) {
+      if (!seasons || parseInt(season.toString(), 10) > seasons.seasons.length) {
         return null;
       }
       const episodes = await this.imdbMatcher.getImdbEpisodes(imdbId, { season });
@@ -262,7 +262,7 @@ export class DoubanMatcher {
       try {
         // 搜索豆瓣信息
         let keywords = seriesName;
-        if (season && parseInt(season.toString()) > 1) {
+        if (season && parseInt(season.toString(), 10) > 1) {
           keywords += season.toString();
         }
         const subjects = await this.searchDoubanInfoByName(keywords);
