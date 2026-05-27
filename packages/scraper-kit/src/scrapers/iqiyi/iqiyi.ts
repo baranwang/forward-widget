@@ -23,12 +23,48 @@ export class IqiyiScraper extends BaseScraper<typeof iqiyiIdSchema> {
       return null;
     }
 
-    const entityId = url.searchParams.get("entityId") ?? url.searchParams.get("tvid") ?? undefined;
-    if (!entityId) {
+    const entityId = url.searchParams.get("entityId") ?? url.searchParams.get("tvid");
+    if (entityId) {
+      return { entityId };
+    }
+
+    const videoId = url.pathname.match(/^\/v_([^/.]+)\.html$/)?.[1];
+    if (videoId) {
+      const parsedEntityId = this.videoIdToEntityId(videoId);
+      return parsedEntityId ? { entityId: parsedEntityId } : null;
+    }
+
+    const albumId = url.pathname.match(/^\/a_([^/.]+)\.html$/)?.[1];
+    if (!albumId) {
       return null;
     }
 
-    return { entityId };
+    const response = await this.fetch.get<string>(url.toString());
+    const linkedVideoId = this.extractVideoIdFromIqiyiHtml(response.data);
+    if (!linkedVideoId) {
+      return null;
+    }
+
+    const parsedEntityId = this.videoIdToEntityId(linkedVideoId);
+    return parsedEntityId ? { entityId: parsedEntityId } : null;
+  }
+
+  /**将视频ID (v_...中的部分) 转换为entity_id */
+  videoIdToEntityId(videoId: string): string | null {
+    try {
+      const base36Decoded = parseInt(videoId, 36);
+      const xorResult = BigInt(base36Decoded) ^ BigInt(0x75706971676c);
+      let finalResult: bigint;
+      if (xorResult < BigInt(9e5)) {
+        finalResult = BigInt(100) * (xorResult + BigInt(9e5));
+      } else {
+        finalResult = xorResult;
+      }
+      return finalResult.toString();
+    } catch (error) {
+      this.logger.error("将 video_id '", videoId, "' 转换为 entity_id 时出错：", error);
+      return null;
+    }
   }
 
   protected PROVIDER_SPECIFIC_BLACKLIST =
@@ -47,6 +83,10 @@ export class IqiyiScraper extends BaseScraper<typeof iqiyiIdSchema> {
       "User-Agent":
         "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Mobile Safari/537.36 Edg/136.0.0.0",
     });
+  }
+
+  private extractVideoIdFromIqiyiHtml(html: string): string | null {
+    return html.match(/v_([^"'?#\s<>/]+)\.html/)?.[1] ?? null;
   }
 
   async getEpisodes(idString: string, episodeNumber?: number) {
@@ -178,24 +218,6 @@ export class IqiyiScraper extends BaseScraper<typeof iqiyiIdSchema> {
     } catch (error) {
       this.logger.error("获取分集时发生错误：", error);
       return [];
-    }
-  }
-
-  /**将视频ID (v_...中的部分) 转换为entity_id */
-  videoIdToEntityId(videoId: string): string | null {
-    try {
-      const base36Decoded = parseInt(videoId, 36);
-      const xorResult = BigInt(base36Decoded) ^ BigInt(0x75706971676c);
-      let finalResult: bigint;
-      if (xorResult < BigInt(9e5)) {
-        finalResult = BigInt(100) * (xorResult + BigInt(9e5));
-      } else {
-        finalResult = xorResult;
-      }
-      return finalResult.toString();
-    } catch (error) {
-      this.logger.error("将 video_id '", videoId, "' 转换为 entity_id 时出错：", error);
-      return null;
     }
   }
 

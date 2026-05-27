@@ -4,12 +4,23 @@ import { initializeFetchAdapter } from "./runtime";
 
 initializeFetchAdapter({
   async get<T>(url: string) {
-    expect(url).toBe("https://api.bilibili.com/pgc/view/web/season?ep_id=3409878");
-    return {
-      data: { result: { season_id: 45962 } } as T,
-      statusCode: 200,
-      headers: {},
-    };
+    if (url === "https://api.bilibili.com/pgc/view/web/season?ep_id=3409878") {
+      return {
+        data: { result: { season_id: 45962 } } as T,
+        statusCode: 200,
+        headers: {},
+      };
+    }
+
+    if (url === "https://www.iqiyi.com/a_album.html") {
+      return {
+        data: '<html><body><a href="/v_mo3lbdn60s.html">episode</a></body></html>' as T,
+        statusCode: 200,
+        headers: {},
+      };
+    }
+
+    throw new Error(`Unexpected GET url: ${url}`);
   },
   async post<T>() {
     return {
@@ -68,8 +79,30 @@ describe("provider-url contracts", () => {
     });
   });
 
-  test("IQIYI v_ path returns null without app/provider conversion", async () => {
-    await expect(parseProviderUrl("https://www.iqiyi.com/v_abc.html")).resolves.toBeNull();
+  test("parses IQIYI v_ URL via entityId conversion", async () => {
+    await expect(parseProviderUrl("https://www.iqiyi.com/v_mo3lbdn60s.html")).resolves.toEqual({
+      provider: "iqiyi",
+      id: { entityId: "2349242958520400" },
+      idString: "entityId=2349242958520400",
+      url: "https://www.iqiyi.com/v_mo3lbdn60s.html",
+    });
+  });
+
+  test("parses IQIYI a_ URL by fetching HTML and converting linked video id", async () => {
+    await expect(parseProviderUrl("https://www.iqiyi.com/a_album.html")).resolves.toEqual({
+      provider: "iqiyi",
+      id: { entityId: "2349242958520400" },
+      idString: "entityId=2349242958520400",
+      url: "https://www.iqiyi.com/a_album.html",
+    });
+  });
+
+  test("parseProviderUrlFor parses IQIYI v_ URL for iqiyi provider", async () => {
+    await expect(parseProviderUrlFor("iqiyi", "https://www.iqiyi.com/v_mo3lbdn60s.html")).resolves.toEqual({
+      id: { entityId: "2349242958520400" },
+      idString: "entityId=2349242958520400",
+      url: "https://www.iqiyi.com/v_mo3lbdn60s.html",
+    });
   });
 
   test("Bilibili ss URL resolves directly", async () => {
