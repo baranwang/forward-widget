@@ -212,7 +212,7 @@ describe("model output validation", () => {
       type: "movie",
       tmdbId: 980477,
       title: "Model Title",
-      providers: [{ provider: "iqiyi", idString: "demo", url: "https://v.qq.com/x/cover/demo.html" }],
+      providers: [{ provider: "iqiyi", idString: "entityId=demo", url: "https://v.qq.com/x/cover/demo.html" }],
     },
   };
 
@@ -250,9 +250,23 @@ describe("model output validation", () => {
         type: "movie",
         tmdbId: 980477,
         title: "Model Title",
-        providers: [{ provider: "iqiyi", idString: "demo", url: "https://v.qq.com/x/cover/demo.html" }],
+        providers: [{ provider: "iqiyi", idString: "entityId=demo", url: "https://v.qq.com/x/cover/demo.html" }],
       },
     });
+  });
+
+  test("rejects provider idString values that cannot be parsed by the selected provider", () => {
+    expect(() =>
+      parseStructuredModelResponse({
+        status: "confident",
+        mapping: {
+          type: "tv",
+          tmdbId: 282136,
+          title: "Example Show",
+          providers: [{ season: 1, provider: "bilibili", idString: "ses_19657d109ffe84cBiE6WQ5Qjrv" }],
+        },
+      }),
+    ).toThrow("idString must be valid for the selected provider");
   });
 
   test("parses ambiguous structured SDK output", () => {
@@ -694,7 +708,7 @@ https://example.com/watch/unknown-provider
               providers: [
                 {
                   provider: "iqiyi",
-                  idString: "demo",
+                  idString: "entityId=demo",
                   url: "https://example.com/watch/other-provider",
                 },
               ],
@@ -746,7 +760,7 @@ https://example.com/watch/unknown-provider
       type: "movie",
       tmdbId: 999999,
       title: "Mismatched Candidate",
-      providers: [{ provider: "iqiyi", idString: "demo" }],
+      providers: [{ provider: "iqiyi", idString: "entityId=demo" }],
     });
     expect(json).not.toHaveProperty("sourceUrl");
     expect(json).not.toHaveProperty("verifiedAt");

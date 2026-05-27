@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { providerNames } from "@forward-widget/scraper-kit/provider-metadata";
-import { parseProviderUrl } from "@forward-widget/scraper-kit/provider-url";
+import { parseProviderIdStringFor, parseProviderUrl } from "@forward-widget/scraper-kit/provider-url";
 import { type HttpAdapterRequestOptions, initializeFetchAdapter } from "@forward-widget/scraper-kit/runtime";
 import type { Config, OutputFormat } from "@opencode-ai/sdk/v2";
 import { createOpencode } from "@opencode-ai/sdk/v2";
@@ -11,23 +11,50 @@ import { canonicalMappingSchema, episodeRangeSchema } from "./schema.ts";
 
 const providerEnumSchema = z.enum(providerNames);
 
-const mappingCandidateBaseProviderSchema = z
-  .object({
-    provider: providerEnumSchema,
-    idString: z.string(),
-    url: z.string().optional(),
-  })
-  .strict();
+const mappingCandidateBaseProviderFields = {
+  provider: providerEnumSchema,
+  idString: z.string(),
+  url: z.string().optional(),
+};
 
-const mappingCandidateMovieProviderSchema = mappingCandidateBaseProviderSchema.strict();
+function hasValidProviderIdString(provider: (typeof providerNames)[number], idString: string): boolean {
+  try {
+    parseProviderIdStringFor(provider, idString);
+    return true;
+  } catch (error) {
+    void error;
+    return false;
+  }
+}
 
-const mappingCandidateTvProviderSchema = mappingCandidateBaseProviderSchema
+function validateProviderIdString(
+  provider: { provider: (typeof providerNames)[number]; idString: string },
+  ctx: z.RefinementCtx,
+): void {
+  if (hasValidProviderIdString(provider.provider, provider.idString)) {
+    return;
+  }
+  ctx.addIssue({
+    code: "custom",
+    path: ["idString"],
+    message: "idString must be valid for the selected provider",
+  });
+}
+
+const mappingCandidateMovieProviderSchema = z
+  .object(mappingCandidateBaseProviderFields)
+  .strict()
+  .superRefine(validateProviderIdString);
+
+const mappingCandidateTvProviderSchema = z
+  .object(mappingCandidateBaseProviderFields)
   .extend({
     season: z.number().int().nonnegative(),
     epRange: episodeRangeSchema.optional(),
     epOffset: z.number().int().default(0),
   })
-  .strict();
+  .strict()
+  .superRefine(validateProviderIdString);
 
 const mappingCandidateSchema = z.discriminatedUnion("type", [
   z
