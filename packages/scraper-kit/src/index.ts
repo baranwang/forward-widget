@@ -14,7 +14,7 @@ export {
 export type { ProviderName } from "./provider-metadata";
 export { isProviderName, providerNames } from "./provider-metadata";
 export type { ParsedProviderUrl } from "./provider-url";
-export { parseProviderUrl, parseProviderUrlFor } from "./provider-url";
+export { parseProviderIdStringFor, parseProviderUrl, parseProviderUrlFor } from "./provider-url";
 export type {
   FetchHttpAdapter,
   FetchOptions,

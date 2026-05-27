@@ -71,3 +71,8 @@ export async function parseProviderUrlFor<P extends ProviderName>(
 
   return parseWithScraper(provider, parsedUrl, url);
 }
+
+export function parseProviderIdStringFor<P extends ProviderName>(provider: P, idString: string): ProviderId[P] {
+  const scraper = scraperMap[provider] as unknown as ProviderUrlScraper<P>;
+  return scraper.parseProviderIdString(idString);
+}

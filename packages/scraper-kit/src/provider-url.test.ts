@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@rstest/core";
-import { parseProviderUrl, parseProviderUrlFor } from "./index";
+import { parseProviderIdStringFor, parseProviderUrl, parseProviderUrlFor } from "./index";
 import { initializeFetchAdapter } from "./runtime";
 
 initializeFetchAdapter({
@@ -159,5 +159,10 @@ describe("provider-url contracts", () => {
 
   test("parseProviderUrlFor returns null for malformed URL and does not throw", async () => {
     await expect(parseProviderUrlFor("mgtv", "not-a-url")).resolves.toBeNull();
+  });
+
+  test("parseProviderIdStringFor parses idString through the selected provider", () => {
+    expect(parseProviderIdStringFor("bilibili", "seasonId=45962")).toEqual({ seasonId: "45962" });
+    expect(() => parseProviderIdStringFor("bilibili", "ses_19657d109ffe84cBiE6WQ5Qjrv")).toThrow("bilibili");
   });
 });
