@@ -1,0 +1,13 @@
+{
+  "type": "tv",
+  "tmdbId": 282158,
+  "title": "择天记",
+  "providers": [
+    {
+      "season": 1,
+      "provider": "iqiyi",
+      "idString": "entityId=2349242958520400",
+      "epOffset": 0
+    }
+  ]
+}
