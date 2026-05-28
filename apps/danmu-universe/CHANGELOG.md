@@ -1,5 +1,12 @@
 # @forward-widget/danmu-universe
 
+## 0.15.5
+
+### Patch Changes
+
+- 52c1932: Fix TMDB local mapping lookup for provider-level season, episode range, and episode offset mappings.
+- f3e3a96: Add TMDB local mapping for 择天记.
+
 ## 0.15.4
 
 ### Patch Changes
