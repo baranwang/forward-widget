@@ -155,6 +155,28 @@ type ModelSelection = {
   modelID: string;
 };
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function mappingAgentLog(message: string, details?: Record<string, unknown>): void {
+  const suffix = details && Object.keys(details).length > 0 ? ` ${JSON.stringify(details)}` : "";
+  console.log(`[tmdb-mapping-agent] ${new Date().toISOString()} ${message}${suffix}`);
+}
+
+async function loggedStep<T>(name: string, action: () => Promise<T>, details?: Record<string, unknown>): Promise<T> {
+  const startedAt = Date.now();
+  mappingAgentLog(`${name}: start`, details);
+  try {
+    const result = await action();
+    mappingAgentLog(`${name}: success`, { durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    mappingAgentLog(`${name}: failed`, { durationMs: Date.now() - startedAt, error: errorMessage(error) });
+    throw error;
+  }
+}
+
 function responseHeaders(response: Response): Record<string, string> {
   return response.headers ? Object.fromEntries(response.headers.entries()) : {};
 }
@@ -166,28 +188,54 @@ function responseStatus(response: Response): number {
 function initializeMappingFetchAdapter() {
   initializeFetchAdapter({
     async get<T>(url: string, options?: HttpAdapterRequestOptions) {
-      const response = await fetch(url, {
-        headers: options?.headers,
-        signal: mappingAgentRequestSignal(),
-      });
-      return {
-        data: (await response.json()) as T,
-        statusCode: responseStatus(response),
-        headers: responseHeaders(response),
-      };
+      const startedAt = Date.now();
+      mappingAgentLog("http get: start", { url });
+      try {
+        const response = await fetch(url, {
+          headers: options?.headers,
+          signal: mappingAgentRequestSignal(),
+        });
+        const result = {
+          data: (await response.json()) as T,
+          statusCode: responseStatus(response),
+          headers: responseHeaders(response),
+        };
+        mappingAgentLog("http get: success", {
+          url,
+          statusCode: result.statusCode,
+          durationMs: Date.now() - startedAt,
+        });
+        return result;
+      } catch (error) {
+        mappingAgentLog("http get: failed", { url, durationMs: Date.now() - startedAt, error: errorMessage(error) });
+        throw error;
+      }
     },
     async post<T>(url: string, body: unknown, options?: HttpAdapterRequestOptions) {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: options?.headers,
-        body: typeof body === "string" ? body : JSON.stringify(body),
-        signal: mappingAgentRequestSignal(),
-      });
-      return {
-        data: (await response.json()) as T,
-        statusCode: responseStatus(response),
-        headers: responseHeaders(response),
-      };
+      const startedAt = Date.now();
+      mappingAgentLog("http post: start", { url });
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: options?.headers,
+          body: typeof body === "string" ? body : JSON.stringify(body),
+          signal: mappingAgentRequestSignal(),
+        });
+        const result = {
+          data: (await response.json()) as T,
+          statusCode: responseStatus(response),
+          headers: responseHeaders(response),
+        };
+        mappingAgentLog("http post: success", {
+          url,
+          statusCode: result.statusCode,
+          durationMs: Date.now() - startedAt,
+        });
+        return result;
+      } catch (error) {
+        mappingAgentLog("http post: failed", { url, durationMs: Date.now() - startedAt, error: errorMessage(error) });
+        throw error;
+      }
     },
   });
 }
@@ -244,32 +292,50 @@ export async function extractIssueFields(
   env: NodeJS.ProcessEnv,
 ): Promise<IssueFormFields> {
   const selection = modelSelection(env);
-  const { client, server } = await createOpencode({ config: opencodeConfig(env), timeout: 120_000 });
+  const { client, server } = await loggedStep(
+    "opencode create client for issue field extraction",
+    () => createOpencode({ config: opencodeConfig(env), timeout: 120_000 }),
+    { provider: selection.providerID, model: selection.modelID },
+  );
   try {
-    const session = sdkData(await client.session.create({ directory: repoRoot, title: "TMDB platform mapping agent" }));
+    const session = sdkData(
+      await loggedStep("opencode create session for issue field extraction", () =>
+        client.session.create({ directory: repoRoot, title: "TMDB platform mapping agent" }),
+      ),
+    );
     const format: OutputFormat = {
       type: "json_schema",
       schema: issueFormFieldsOutputJsonSchema,
       retryCount: 2,
     };
     const response = sdkData(
-      await client.session.prompt({
-        sessionID: session.id,
-        directory: repoRoot,
-        model: selection,
-        agent: "build",
-        tools: {},
-        format,
-        parts: [{ type: "text", text: buildIssueFieldsPrompt(issueBody) }],
-      }),
+      await loggedStep("opencode prompt for issue field extraction", () =>
+        client.session.prompt({
+          sessionID: session.id,
+          directory: repoRoot,
+          model: selection,
+          agent: "build",
+          tools: {},
+          format,
+          parts: [{ type: "text", text: buildIssueFieldsPrompt(issueBody) }],
+        }),
+      ),
     );
     const structuredResponse = response.info?.structured;
     if (structuredResponse === undefined) {
       fail("OpenCode SDK response did not include structured output");
     }
-    return parseIssueFieldsStructuredResponse(structuredResponse);
+    const fields = parseIssueFieldsStructuredResponse(structuredResponse);
+    mappingAgentLog("issue field extraction parsed", {
+      mediaType: fields.media_type,
+      tmdbUrl: fields.tmdb_url,
+      season: fields.season ?? null,
+      platformUrlCount: fields.platform_urls.length,
+    });
+    return fields;
   } finally {
     server.close();
+    mappingAgentLog("opencode server closed after issue field extraction");
   }
 }
 
@@ -332,11 +398,16 @@ const deterministicProviders = new Set(providerNames);
 async function resolvePlatformProviders(platformUrls: string[]): Promise<MappingCandidateProvider[] | null> {
   const providers: MappingCandidateProvider[] = [];
   for (const platformUrl of platformUrls) {
-    const parsed = await parseProviderUrl(platformUrl);
+    const parsed = await loggedStep("parse provider URL", () => parseProviderUrl(platformUrl), { url: platformUrl });
     if (parsed) {
       if (!deterministicProviders.has(parsed.provider)) {
+        mappingAgentLog("provider URL resolved to unsupported provider", {
+          provider: parsed.provider,
+          url: platformUrl,
+        });
         return null;
       }
+      mappingAgentLog("provider URL resolved", { provider: parsed.provider, idString: parsed.idString });
       providers.push({
         provider: parsed.provider,
         idString: parsed.idString,
@@ -344,6 +415,9 @@ async function resolvePlatformProviders(platformUrls: string[]): Promise<Mapping
       });
       continue;
     }
+    mappingAgentLog("provider URL unresolved; falling back to OpenCode mapping candidate generation", {
+      url: platformUrl,
+    });
     return null;
   }
   return providers;
@@ -374,15 +448,18 @@ export async function fetchTmdbMetadata(fields: IssueFormFields, env: NodeJS.Pro
   const { tmdbId } = parseTmdbUrl(fields.tmdb_url);
   const token = requiredEnv(env, "TMDB_ACCESS_TOKEN");
   const language = env.TMDB_LANGUAGE || "zh-CN";
-  const response = await fetch(
-    `https://api.themoviedb.org/3/${fields.media_type}/${tmdbId}?language=${encodeURIComponent(language)}`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-      signal: mappingAgentRequestSignal(),
-    },
+  const tmdbMetadataUrl = `https://api.themoviedb.org/3/${fields.media_type}/${tmdbId}?language=${encodeURIComponent(language)}`;
+  const response = await loggedStep(
+    "fetch TMDB metadata",
+    () =>
+      fetch(tmdbMetadataUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+        signal: mappingAgentRequestSignal(),
+      }),
+    { mediaType: fields.media_type, tmdbId, language },
   );
   if (!response.ok) {
     fail(`TMDB metadata fetch failed with status ${response.status}`);
@@ -398,6 +475,7 @@ export async function fetchTmdbMetadata(fields: IssueFormFields, env: NodeJS.Pro
   }
   const dateValue = fields.media_type === "movie" ? data.release_date : data.first_air_date;
   const year = typeof dateValue === "string" && /^\d{4}/.test(dateValue) ? Number(dateValue.slice(0, 4)) : undefined;
+  mappingAgentLog("TMDB metadata parsed", { title, year: year ?? null });
   return { title, year };
 }
 
@@ -638,24 +716,34 @@ async function generateCandidate(
   env: NodeJS.ProcessEnv,
 ): Promise<MappingCandidate> {
   const selection = modelSelection(env);
-  const { client, server } = await createOpencode({ config: opencodeConfig(env), timeout: 120_000 });
+  const { client, server } = await loggedStep(
+    "opencode create client for mapping candidate generation",
+    () => createOpencode({ config: opencodeConfig(env), timeout: 120_000 }),
+    { provider: selection.providerID, model: selection.modelID },
+  );
   try {
-    const session = sdkData(await client.session.create({ directory: repoRoot, title: "TMDB platform mapping agent" }));
+    const session = sdkData(
+      await loggedStep("opencode create session for mapping candidate generation", () =>
+        client.session.create({ directory: repoRoot, title: "TMDB platform mapping agent" }),
+      ),
+    );
     const format: OutputFormat = {
       type: "json_schema",
       schema: mappingAgentOutputJsonSchema,
       retryCount: 2,
     };
     const response = sdkData(
-      await client.session.prompt({
-        sessionID: session.id,
-        directory: repoRoot,
-        model: selection,
-        agent: "build",
-        tools: {},
-        format,
-        parts: [{ type: "text", text: buildMappingPrompt(fields, metadata) }],
-      }),
+      await loggedStep("opencode prompt for mapping candidate generation", () =>
+        client.session.prompt({
+          sessionID: session.id,
+          directory: repoRoot,
+          model: selection,
+          agent: "build",
+          tools: {},
+          format,
+          parts: [{ type: "text", text: buildMappingPrompt(fields, metadata) }],
+        }),
+      ),
     );
     const structuredResponse = response.info?.structured;
     if (structuredResponse === undefined) {
@@ -663,26 +751,60 @@ async function generateCandidate(
     }
     const modelResponse = parseStructuredModelResponse(structuredResponse);
     if (modelResponse.status === "ambiguous") {
+      mappingAgentLog("mapping candidate generation returned ambiguous", { reason: modelResponse.reason });
       throw new AmbiguousMappingError(modelResponse.reason);
     }
+    mappingAgentLog("mapping candidate generated", {
+      type: modelResponse.mapping.type,
+      tmdbId: modelResponse.mapping.tmdbId,
+      providerCount: modelResponse.mapping.providers.length,
+    });
     return modelResponse.mapping;
   } finally {
     server.close();
+    mappingAgentLog("opencode server closed after mapping candidate generation");
   }
 }
 export async function runMappingAgent(options: MappingAgentOptions): Promise<MappingAgentSummary> {
   const repoRoot = options.repoRoot ?? process.cwd();
   const env = options.env ?? process.env;
   initializeMappingFetchAdapter();
+  mappingAgentLog("run started", {
+    issueNumber: options.issueNumber,
+    repoRoot,
+    summaryPath: options.summaryPath ?? null,
+  });
   try {
     const fields = applyIssueFieldDefaults(await extractIssueFields(options.issueBody, repoRoot, env));
+    mappingAgentLog("issue field defaults applied", {
+      mediaType: fields.media_type,
+      tmdbUrl: fields.tmdb_url,
+      season: fields.season ?? null,
+      platformUrlCount: fields.platform_urls.length,
+    });
     const metadata = await fetchTmdbMetadata(fields, env);
-    const resolvedProviders = await resolvePlatformProviders(fields.platform_urls);
+    const resolvedProviders = await loggedStep("resolve platform providers", () =>
+      resolvePlatformProviders(fields.platform_urls),
+    );
     const candidate = resolvedProviders
       ? createResolvedCandidate(fields, metadata, resolvedProviders)
       : await generateCandidate(fields, metadata, repoRoot, env);
+    mappingAgentLog("mapping candidate selected", {
+      source: resolvedProviders ? "deterministic-provider-url" : "opencode",
+      providerCount: candidate.providers.length,
+    });
     const mapping = toCanonicalMapping(candidate);
+    mappingAgentLog("canonical mapping created", {
+      type: mapping.type,
+      tmdbId: mapping.tmdbId,
+      title: mapping.title,
+      providerCount: mapping.providers.length,
+    });
     const artifacts = writeMappingArtifacts(repoRoot, options.issueNumber, mapping);
+    mappingAgentLog("mapping artifacts evaluated", {
+      changed: artifacts.changed,
+      changedFiles: artifacts.changedFiles,
+    });
     const summary: MappingAgentSummary = {
       status: "success",
       issueNumber: options.issueNumber,
@@ -694,15 +816,17 @@ export async function runMappingAgent(options: MappingAgentOptions): Promise<Map
         : `TMDB mapping already up to date for ${mapping.title}`,
     };
     writeMappingAgentSummary(options.summaryPath, summary);
+    mappingAgentLog("run completed", { status: summary.status, message: summary.message });
     return summary;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     const summary: MappingAgentSummary = {
       status: error instanceof AmbiguousMappingError ? "ambiguous" : "error",
       issueNumber: options.issueNumber,
       message,
     };
     writeMappingAgentSummary(options.summaryPath, summary);
+    mappingAgentLog("run completed", { status: summary.status, message });
     return summary;
   }
 }
