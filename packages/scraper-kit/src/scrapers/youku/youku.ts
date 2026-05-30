@@ -17,13 +17,20 @@ export class YoukuScraper extends BaseScraper<typeof youkuIdSchema> {
       return null;
     }
 
-    const showId = url.searchParams.get("showid") ?? undefined;
-    const vid = url.searchParams.get("vid") ?? undefined;
+    let showId =
+      url.searchParams.get("showid") || url.searchParams.get("showId") || url.searchParams.get("s") || undefined;
+    const vid = url.searchParams.get("vid") || url.pathname.match(/\/v_show\/id_(.+)\.html$/)?.[1] || undefined;
     if (!showId && !vid) {
       return null;
     }
+    if (!showId && vid) {
+      showId = (await this.getVideoInfo(vid))?.show_id || undefined;
+    }
 
-    return { showId, vid };
+    return {
+      ...(showId ? { showId } : {}),
+      ...(vid ? { vid } : {}),
+    };
   }
 
   private readonly EPISODE_BLACKLIST_KEYWORDS = ["彩蛋", "加更", "走心", "解忧", "纯享"];

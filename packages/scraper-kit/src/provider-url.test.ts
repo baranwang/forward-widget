@@ -20,6 +20,25 @@ initializeFetchAdapter({
       };
     }
 
+    if (
+      url ===
+      "https://openapi.youku.com/v2/videos/show_basic.json?client_id=53e6cc67237fc59a&package=com.huawei.hwvplayer.youku&video_id=XNTk3MzA5NzgzMg%3D%3D"
+    ) {
+      return {
+        data: {
+          id: "XNTk3MzA5NzgzMg==",
+          show_id: "adaec02f09f9469ab8d8",
+          title: "Example Youku Episode",
+          seq: 1,
+          duration: "2700",
+          category: "电视剧",
+          link: "https://v.youku.com/v_show/id_XNTk3MzA5NzgzMg==.html",
+        } as T,
+        statusCode: 200,
+        headers: {},
+      };
+    }
+
     throw new Error(`Unexpected GET url: ${url}`);
   },
   async post<T>() {
@@ -61,6 +80,28 @@ describe("provider-url contracts", () => {
       id: { showId: "s1", vid: "v1" },
       idString: "showId=s1&vid=v1",
       url: "https://v.youku.com/v_show/id_xxx.html?showid=s1&vid=v1",
+    });
+  });
+
+  test("parses Youku v_show URL path and s query", async () => {
+    const url = "https://v.youku.com/v_show/id_XNTk3MzA5NzgzMg==.html?&s=adaec02f09f9469ab8d8";
+
+    await expect(parseProviderUrl(url)).resolves.toEqual({
+      provider: "youku",
+      id: { showId: "adaec02f09f9469ab8d8", vid: "XNTk3MzA5NzgzMg==" },
+      idString: "showId=adaec02f09f9469ab8d8&vid=XNTk3MzA5NzgzMg%3D%3D",
+      url,
+    });
+  });
+
+  test("parses Youku v_show URL with only path vid", async () => {
+    const url = "https://v.youku.com/v_show/id_XNTk3MzA5NzgzMg==.html";
+
+    await expect(parseProviderUrl(url)).resolves.toEqual({
+      provider: "youku",
+      id: { showId: "adaec02f09f9469ab8d8", vid: "XNTk3MzA5NzgzMg==" },
+      idString: "showId=adaec02f09f9469ab8d8&vid=XNTk3MzA5NzgzMg%3D%3D",
+      url,
     });
   });
 

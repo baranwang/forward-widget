@@ -755,6 +755,7 @@ https://example.com/watch/unknown-provider
     expect(sessionPrompt.mock.calls[0][0].parts[0].text).toContain(issueBody);
     expect(sessionPrompt.mock.calls[0][0].parts[0].text).toContain("媒体标题（可选）");
     expect(candidatePrompt).toHaveBeenCalledTimes(1);
+    expect(candidatePrompt.mock.calls[0][0].parts[0].text).toContain('"season": 1');
 
     const summaryFile = JSON.parse(fs.readFileSync(summaryPath, "utf8"));
     expect(summaryFile).toEqual(summary);
@@ -857,7 +858,7 @@ https://www.bilibili.com/bangumi/play/ep3409878
     expect("url" in json.providers[0]).toBe(false);
   });
 
-  test("resolves Bilibili season URLs with OpenCode extraction", async () => {
+  test("defaults missing TV season to season 1 for deterministic provider URLs", async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "tmdb-mapping-run-"));
     const repoRoot = tempDir;
     const dataPath = path.join(repoRoot, mappingDataRelativePath({ type: "tv", tmdbId: 282136 }));
@@ -896,7 +897,7 @@ https://www.bilibili.com/bangumi/play/ss45962
       media_title: undefined,
       media_type: "tv",
       tmdb_url: "https://www.themoviedb.org/tv/282136",
-      season: 1,
+      season: null,
       platform_urls: ["https://www.bilibili.com/bangumi/play/ss45962"],
       notes: undefined,
     });

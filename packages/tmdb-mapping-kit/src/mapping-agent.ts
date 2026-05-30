@@ -198,6 +198,13 @@ function fail(message: string): never {
 
 class AmbiguousMappingError extends Error {}
 
+function applyIssueFieldDefaults(fields: IssueFormFields): IssueFormFields {
+  if (fields.media_type !== "tv" || typeof fields.season === "number") {
+    return fields;
+  }
+  return { ...fields, season: 1 };
+}
+
 function requiredEnv(env: NodeJS.ProcessEnv, name: string): string {
   const value = env[name];
   if (!value) {
@@ -355,10 +362,7 @@ function createResolvedCandidate(
   if (fields.media_type === "movie") {
     return { type: "movie", ...base, providers };
   }
-  const season = fields.season;
-  if (typeof season !== "number") {
-    throw new AmbiguousMappingError("TV mappings require an explicit TMDB season");
-  }
+  const season = fields.season ?? 1;
   return {
     type: "tv",
     ...base,
@@ -671,7 +675,7 @@ export async function runMappingAgent(options: MappingAgentOptions): Promise<Map
   const env = options.env ?? process.env;
   initializeMappingFetchAdapter();
   try {
-    const fields = await extractIssueFields(options.issueBody, repoRoot, env);
+    const fields = applyIssueFieldDefaults(await extractIssueFields(options.issueBody, repoRoot, env));
     const metadata = await fetchTmdbMetadata(fields, env);
     const resolvedProviders = await resolvePlatformProviders(fields.platform_urls);
     const candidate = resolvedProviders
