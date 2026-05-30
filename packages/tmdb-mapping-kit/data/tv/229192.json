@@ -1,0 +1,13 @@
+{
+  "type": "tv",
+  "tmdbId": 229192,
+  "title": "沧元图",
+  "providers": [
+    {
+      "season": 1,
+      "provider": "youku",
+      "idString": "showId=adaec02f09f9469ab8d8&vid=XNTk3MzA5NzgzMg%3D%3D",
+      "epOffset": 0
+    }
+  ]
+}
