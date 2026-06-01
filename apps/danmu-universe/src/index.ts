@@ -251,6 +251,8 @@ const checkShowEmptyAnimeTitle = (params: SearchDanmuParams) => {
 };
 
 searchDanmu = async (params) => {
+  console.log("searchDanmu params", params);
+
   const globalParams = scraper.setGlobalParams(params);
 
   const { fuzzyMatch = "auto", type: mediaType, episode } = params;
@@ -295,6 +297,7 @@ searchDanmu = async (params) => {
       })
     : [];
   if (localEpisodeParams.length) {
+    console.log("Found local episode params", localEpisodeParams);
     const localEpisodes = await getMatchedEpisodes(localEpisodeParams, false);
     if (localEpisodes.length) return toSearchResult(localEpisodes);
   }

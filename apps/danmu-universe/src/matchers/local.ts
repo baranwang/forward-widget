@@ -42,3 +42,20 @@ export const getLocalEpisodeParams = (params: LocalMapLookupParams): GetEpisodeP
   if (!providers) return [];
   return cloneProviders(providers);
 };
+
+if (import.meta.rstest) {
+  const { describe, expect, test } = import.meta.rstest;
+
+  describe("getLocalEpisodeParams real test", () => {
+    test("沧元图", () => {
+      const result = getLocalEpisodeParams({
+        type: "tv",
+        tmdbId: 229192,
+        season: 1,
+        episode: 79,
+      });
+      console.log(result);
+      expect(result.length).toBe(1);
+    });
+  });
+}
