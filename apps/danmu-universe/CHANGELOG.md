@@ -1,5 +1,12 @@
 # @forward-widget/danmu-universe
 
+## 0.15.6
+
+### Patch Changes
+
+- 5ca716a: Add TMDB local mappings for 灵笼 and 咒术回战, and ensure filtered dev runs build workspace dependencies first.
+- 3c627cf: Add TMDB local mapping for 沧元图.
+
 ## 0.15.5
 
 ### Patch Changes
