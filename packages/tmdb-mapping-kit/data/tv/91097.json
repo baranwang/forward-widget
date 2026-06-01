@@ -1,0 +1,17 @@
+{
+  "type": "tv",
+  "tmdbId": 91097,
+  "title": "灵笼",
+  "providers": [
+    {
+      "season": 1,
+      "provider": "bilibili",
+      "idString": "seasonId=22088"
+    },
+    {
+      "season": 2,
+      "provider": "bilibili",
+      "idString": "seasonId=46585"
+    }
+  ]
+}

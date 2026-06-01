@@ -1,0 +1,26 @@
+{
+  "type": "tv",
+  "tmdbId": 95479,
+  "title": "咒术回战",
+  "providers": [
+    {
+      "season": 1,
+      "provider": "bilibili",
+      "idString": "seasonId=34430",
+      "epRange": [
+        1,
+        24
+      ]
+    },
+    {
+      "season": 1,
+      "provider": "bilibili",
+      "idString": "seasonId=45574",
+      "epOffset": -24,
+      "epRange": [
+        25,
+        47
+      ]
+    }
+  ]
+}
